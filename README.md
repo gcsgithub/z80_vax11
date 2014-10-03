@@ -4,3 +4,4 @@ then just a simple lookup table
 
  Mark Garrett now 2014 this code written in 1989 ;)
 
+I should add that I almost lost this to history and only found a listing in 2013 which I retyped at that time, it looks like there a few typo's needing a fix ;( 
