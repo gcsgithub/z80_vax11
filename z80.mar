@@ -4,7 +4,8 @@
 ; (c) Copyright 1989 Mark Garrett
 ;
 ;     You may use this program freely, You may not sell it. If you improve or change this program in
-; any way I'd appreciate that you send me your changes, and make proper comments in the source code indicating thee changes.
+; any way I'd appreciate that you send me your changes, and make proper comments in the source code indicating thee changes
+.
 ;
 ;    I MAKE NO REPRESENTATIONS ABOUT THE SUITABILITY OF
 ;    THIS SOURCE CODE FOR ANY PURPOSE. IT IS PROVIDED "AS IS" 
@@ -23,6 +24,7 @@
 ;
 ; 2013 fix long standing error in pun and rdr rabs
 ;       add support for halt loop with prompt to exit, incomplete
+; 2016 fix typos and get this working again
 ;
 ;
 ; This program will emulate a micro computer based on :-
@@ -34,87 +36,112 @@
 $iodef
 $ttdef
             .psect z80$FILE_CONTROL    LONG,WRT,noexe
-
+;
 ;
 OUT$FAB:    $FAB    FAC=<PUT>       ,-
-            RFM=<VAR>               ,-
-            SHR=<NIL>               ,-
-            FNM=<SYS$OUTPUT>
+                    RFM=<VAR>       ,-
+                    SHR=<GET>       ,-
+                    FNM=<SYS$OUTPUT>
 ;
-OUT$RAB:    $RAB    FAB=OUT$FAB     ,-
-            RAC=<SEQ>               ,-
-            RBF=OUT$A_RECORD        ,-
-            RSZ=OUT$S_RECORDSIZE    ,-
-            UBF=OUT$A_RECORD        ,-
-            USZ=OUT$S_RECORDSIZE
+OUT$RAB:    $RAB    FAB=OUT$FAB      ,-
+                    RAC=<SEQ>        ,-
+                    RBF=OUT$A_RECORD ,-
+                    RSZ=OUT$S_RECORDSIZE ,-
+                    UBF=OUT$A_RECORD ,-
+                    USZ=OUT$S_RECORDSIZE
 ;
 pun$FAB:    $FAB    FAC=<PUT>       ,-
-            RFM=<VAR>               ,-
-            SHR=<NIL>               ,-
-            FNM=<z80$pun>
+                    RFM=<VAR>       ,-
+                    SHR=<GET>       ,-
+                    FNM=<z80$pun>
 ;
 pun$RAB:    $RAB    FAB=pun$FAB     ,-
-            RAC=<SEQ>               ,-
-            RBF=pun$rec             ,-
-            RSZ=256                 ,-
-            UBF=pun$rec             ,-
-            USZ=256
+                    RAC=<SEQ>       ,-
+                    RBF=pun$rec     ,-
+                    RSZ=256         ,-
+                    UBF=pun$rec     ,-
+                    USZ=256
 ;
 rdr$FAB:    $FAB    FAC=<GET>       ,-
-            RFM=<VAR>               ,-
-            SHR=<NIL>               ,-
-            FNM=<z80$rdr>
+                    RFM=<VAR>       ,-
+                    SHR=<GET>       ,-
+                    FNM=<z80$rdr>
 ;
 rdr$RAB:    $RAB    FAB=rdr$FAB     ,-
-            RAC=<SEQ>               ,-
-            RBF=rdr$rec             ,-
-            RSZ=256                 ,-
-            UBF=rdr$rec             ,-
-            USZ=256
+                    RAC=<SEQ>       ,-
+                    RBF=rdr$rec     ,-
+                    RSZ=256         ,-
+                    UBF=rdr$rec     ,-
+                    USZ=256
 ;
-lpt$FAB:    $FAB    FAC=<PUT>        ,-
-            RFM=<VAR>               ,-
-            SHR=<NIL>               ,-
-            FNM=<z80$lpt>
+lpt$FAB:    $FAB    FAC=<PUT>       ,-
+                    RFM=<VAR>       ,-
+                    SHR=<GET>       ,-
+                    FNM=<z80$lpt>
 ;
-lpt$RAB:    $RAB    FAB=lpt$FAB        ,-
-            RAC=<SEQ>               ,-
-            RBF=lpt$rec             ,-
-            RSZ=132                 ,-
-            UBF=lpt$rec             ,-
-            USZ=132
+lpt$RAB:    $RAB    FAB=lpt$FAB     ,-
+                    RAC=<SEQ>       ,-
+                    RBF=lpt$rec     ,-
+                    RSZ=132         ,-
+                    UBF=lpt$rec     ,-
+                    USZ=132
 ;
-boot$FAB:    $FAB    FAC=<GET>        ,-
-            RFM=<VAR>               ,-
-            SHR=<NIL>               ,-
-            FNM=<bootrom.hex>
+boot$FAB:   $FAB    FAC=<GET>        ,-
+                    RFM=<VAR>        ,-
+                    SHR=<GET>        ,-
+                    FNM=<z80$boot>   ; bootrom.hex
 ;
-boot$RAB:    $RAB    FAB=boot$FAB    ,-
-            RAC=<SEQ>               ,-
-            RBF=bootrec             ,-
-            RSZ=256                 ,-
-            UBF=bootrec             ,-
-            USZ=256
+; boot record is in IntelHex format which means a max length
+; of 1+2+4+2+255*2+2 = 521 + lineterminators so use 1024
+boot$RAB:    $RAB   FAB=boot$FAB     ,-
+                    RAC=<SEQ>        ,-
+                    RBF=bootrec      ,-
+                    RSZ=1024         ,-
+                    UBF=bootrec      ,-
+                    USZ=1024
 ;
-drive_A$FAB:    $FAB    FAC=<PUT,GET,UPD>    ,-
-            SHR=<NIL>               ,-
-            ORG=<REL>               ,-
-            RFM=<FIX>               ,-
-            FNM=<DRIVE$A>           ; assign logical
+drive_A$FAB: $FAB   FAC=<PUT,GET,UPD>,-
+                    SHR=<GET>        ,-
+                    ORG=<REL>        ,-
+                    RFM=<FIX>        ,-
+                    FNM=<z80$drive_a>    ; assign logical
 ;
-drive_A$RAB:    $RAB    FAB=drive_A$FAB        ,-
-            RAC=<KEY>               ,-
-            KRF=0                   ,-
-            KBF=REC_NO              ,-
-            KSZ=4                   ,-
-            RBF=DRIVEA_REC          ,-
-            RSZ=128                 ,-
-            UBF=DRIVEA_REC          ,-
-            USZ=128
+drive_A$RAB: $RAB   FAB=drive_A$FAB  ,-
+                    RAC=<KEY>        ,-
+                    KRF=0            ,-
+                    KBF=REC_NO       ,-
+                    KSZ=4            ,-
+                    RBF=DRIVEA_REC   ,-
+                    RSZ=128          ,-
+                    UBF=DRIVEA_REC   ,-
+                    USZ=128
+
 REC128_TRK==37
 
+        .psect z80$strings    LONG,rd,nowrt,noexe
+dump_z80_reg_msg_dsc:   .ascid -
+" Z80PC = !4XW (!XB)!/"-
+"    AF = !4XW !AS  AF' = !4XW !AS!/"-
+"    BC = !4XW         BC' = !4XW!/"-
+"    DE = !4XW         DE' = !4XW!/"-
+"    HL = !4XW         HL' = !4XW!/"-
+"        IX = !4XW!/"-
+"        IY = !4XW!/"-
+"        SP = !4XW!/"-
+"        IR = !4XW!/"
+
+loaded_dsc:        .ascid "Loaded @!4XW (!XB)!/"
+err_unknown_op_dsc: .ascid "Unknown opcode !2XB!/"
+
+hex16_dsc:         .ascid "!4XW "
+hex8_dsc:          .ascid "!2XB "
+halt_prompt_dsc:   .ascid "Press Return to Continue"
+chksum_error_dsc:  .ascid "Checksum error expected !2XB got !2XB!/"
+
+
+
         .psect file$data    rd, wrt, noexe
-REC_NO:     .BLKL    1
+REC_NO:     .blkl    1
 lptptr:     .blkw    1
 punptr:     .blkw    1
 rdrptr:     .blkw    1
@@ -123,45 +150,59 @@ lpt$rec:    .blkb    256
 pun$rec:    .blkb    256
 rdr$rec:    .blkb    256
 
-bootrec:    .blkb    128
-drivea_rec: .blkb    128
+flag1dsc:   .word    6
+            .byte    DSC$K_DTYPE_T
+            .byte    DSC$K_CLASS_S
+            .address flag1str
+flag1str:   .blkb    6
+
+flag2dsc:   .word    6
+            .byte    DSC$K_DTYPE_T
+            .byte    DSC$K_CLASS_S
+            .address flag2str
+flag2str:   .blkb    6
+
+
+bootrec_dsc: .word  1024
+            .byte   DSC$K_DTYPE_T
+            .byte   DSC$K_CLASS_S
+            .address bootrec
+bootrec:    .blkb   1024
+drivea_rec: .blkb   128
 
 runflag:    .byte   0           ; run while 0
-
-hlt_mess:   .ascid -
-" Z80 halted at address !4XW!/"-
-"    AF = !4XW        AF' = !4XW!/"-
-"    BC = !4XW        BC' = !4XW!/"-
-"    DE = !4XW        DE' = !4XW!/"-
-"    HL = !4XW        HL' = !4XW!/"-
-"        IX = !4XW!/"-
-"        IY = !4XW!/"-
-"        SP = !4XW!/"-
-"        IR = !4XW!/"
-
-
-$EQU  halt_prompt_len  24
-halt_prompt:	 .ascii "Press Return to Continue"
-
-outbuf:     .long     out$s_recordsize
-            .address out$a_record
-
+intflg:     .byte   ^xff        ; 0xff int enabled
 
 $EQU    OUT$S_RECORDSIZE    <80 * 25>
 $DEF    OUT$A_RECORD        .BLKB <OUT$S_RECORDSIZE>
 
-; moveab buffer, drive_a$rab+rab$l_ubf
-;
-;
-;
-            .psect z80$data    noexe,rd,wrt,pic
+outbuf_dsc:
+outbuf_len:    .word    OUT$S_RECORDSIZE
+outbuf_dtype:  .byte    DSC$K_DTYPE_T
+outbuf_class:  .byte    DSC$K_CLASS_S
+outbuf_addr:   .address OUT$A_RECORD
+
+
+
+        .psect z80$data    noexe,rd,wrt,pic
 
 qio_flag:   .blkb    1
 
-tt_nam:     .ascid /TT/
+tt_nam:     .ascid /Z80$TERM/
 tt_chan:    .blkw    1
 tt_iosb:    .blkq    1
 tt_buf:     .blkb    1
+
+
+emucons_nam:	.ascid /Z80$CONSOLE/
+emucons_chan:	.blkw	1
+emucons_iosb:	.blkq	1
+emucons_iochar:	.blkb	1
+
+
+iochar:     .blkb    1
+
+
 ;save_key:  .blkb    1
 
             .psect z80$registers    noexe,rd,wrt,pic,long
@@ -200,22 +241,25 @@ reg_HL2:
     reg_H2: .blkb    1
 
 reg_SP:
-    reg_SPL: .blkb    1
-    reg_SPH: .blkb  1
+    reg_SPL: .blkb   1
+    reg_SPH: .blkb   1
 reg_IX:
-    reg_IXL: .blkb    1
-    reg_IXH: .blkb  1
+    reg_IXL: .blkb   1
+    reg_IXH: .blkb   1
 reg_IY:
-    reg_IYL: .blkb    1
-    reg_IYH: .blkb  1
+    reg_IYL: .blkb   1
+    reg_IYH: .blkb   1
 
 reg_IR:
     reg_R:  .blkb    1
     reg_I:  .blkb    1
 
-TEMP_PC:    .BLKW    1
+CURIPADDR:  .long    0         ; current instruction pointer
+CURIP:      .word    0
+NEW_PC:     .BLKW    1
 TEMP:       .blkw    1
 
+CHKSUM:	    .byte    0
 EBREAK:     .BLKW    1
 
 LBREAK1:    .word    ^x0080    ; Break start of rom
@@ -226,7 +270,7 @@ HBREAK2:    .word    ^x0200    ; Break up to the end of rom
 
 save_key == ^x0DF60
 
-z80_memory:    .blkb ^xffff
+z80_memory:  .blkb ^xffff
 ;
 ;    R9 holds address of HL reg pair
 ;    r1 holds the memory address last accessed when looping back to fetch
@@ -235,14 +279,24 @@ z80_memory:    .blkb ^xffff
 
         .psect    z80$emulator    exe,nowrt,pic
 Z80_START::    .word ^M<>
-            movab    z80_memory, r11
-            bsbw    SETUPIO
+            movab   z80_memory, r11
+            bsbw    z80config
             clrw    reg_SP
             movaw   reg_HL, r9
+            ;movw    #^x0100, r10 ; for testing start at 0100h
+            bisb2   #^x80, reg_R ; set the high bit 
 
-fetch:      movaw   reg_HL, ptr_idx
+fetch:      
+            movaw   reg_HL, ptr_idx
+            addb3   reg_R, #1, r0 ; increment 7bits of R
+            bicb2   #^x80, r0     ; clear high bit
+            bicb2   #^x7f, reg_R  ; clear the low bits of R
+            bisb2   r0, reg_R     ; add the 7bits of add back
 
-fetch2:     movzbl  (r10)[r11], r0
+fetch2:     
+            movzbl  (r10)[r11], r0
+            movw    r10, CURIP
+            movab   (r10)[r11], CURIPADDR
             cmpw    r10, EBREAK
             beql    break1
 
@@ -252,7 +306,7 @@ fetch2:     movzbl  (r10)[r11], r0
             bgtr    test2        ; branch if greater than High Break
             brb     break1
 
-test2:       cmpw    r10, LBREAK2
+test2:      cmpw    r10, LBREAK2
             blss    fetched
             cmpw    r10, HBREAK2
             bgtr    fetched
@@ -262,6 +316,10 @@ BREAK1:     nop                 ; set a break here
             brw     halt
 
 fetched:
+	    bsbw    dump_z80_reg
+            bsbw    disassembler
+fetch0:
+
             incw    r10         ; inc z80pc
 ;   
             extzv   #0, #3, r0, r2
@@ -277,14 +335,14 @@ op_01:      brw     op01
 op_10:      brw     op10
 
 op00:       caseb   r2, #0, #7
-        10$:        .word op00_000-10$
-                    .word op00_001-10$
-                    .word op00_010-10$
-                    .word op00_011-10$
-                    .word op00_100-10$
-                    .word op00_101-10$
-                    .word op00_110-10$
-                    .word op00_111-10$
+        10$:        .word op00_000-10$          ; nop, ex, djnz and jr
+                    .word op00_001-10$          ; LD/ADD HL rr??
+                    .word op00_010-10$          ; various loads
+                    .word op00_011-10$          ; INC/DEC rr
+                    .word op00_100-10$          ; INC r
+                    .word op00_101-10$          ; DEC r
+                    .word op00_110-10$          ; LD r, n
+                    .word op00_111-10$          ; RLCA, RRCA, RLA, RRA, DAA, CPL, SCF, CCF
 
 op00_000:   extzv   #3, #3, r0, r1
             movzbl  (r10)[r11], r3      ; fetch branch value
@@ -305,7 +363,7 @@ op00_000_000:   ; NOP
             brw     fetch
 
 op00_000_001:   ; EX AF, AF'
-            decw    r10 ; restore r10 bratch not part of EX
+            decw    r10 ; restore r10 branch not part of EX
             movw    reg_AF, r0
             movw    reg_AF2, reg_AF
             movw    r0, reg_AF2
@@ -335,20 +393,20 @@ op00_000_111:   ; JR     C, e
                 
         
 ;----------------------
-op00_001:   extzv   #4, #2, r0, r3
+op00_001:   extzv   #4, #2, r0, r3  ; reg_ptr index
             bbs     #3, r0, ADD_HL
-LD_HL:      ; LD rr, nn
+LD_HL:      ; LD rr, nnnn
             movb    (r10)[r11], TEMP
-            incw    r0
+            incw    r10
             movb    (r10)[r11], TEMP+1
             incw    r10
             movl    PTR_BC[r3], r2
-            movw    TEMP, (r2)
+            movw    TEMP, (r2) 
             
             brw     fetch
             
 ADD_HL:     ; ADD HL, rr or ADD IX, rr or ADD IY, rr
-            movl    ptr_bc[r2], r2
+            movl    ptr_bc[r3], r2
             addw2   (r2), @ptr_idx
             bcc     10$
             bisb2   #^x01, reg_F        ; set z80 carry flag
@@ -357,49 +415,64 @@ ADD_HL:     ; ADD HL, rr or ADD IX, rr or ADD IY, rr
 ;------------------------
 ;
 op00_010:   ; 00, 01 = LD (BC, DE), A / LD A, (BC, DE)
-            ; 10 = LD (nn), HL / LD HL, (nn)
-            ; 11 = LD (nn), A  / LD A, (nn)
+            ; 10 = LD (nnnn), HL / LD HL, (nnnn)
+            ; 11 = LD (nnnn), A  / LD A, (nnnn)
+            ; need an address either register contents else nnnn  in r4
+            ; and an address of a register in r2
+
             extzv   #4, #2, r0, r3
-            cmpb    r3, #2
-            blss    20$                 ; branch if 00, 01
-            movb    (r10)[r11], TEMP    ; fetch nn to TEMP
+            cmpb    r3, #2              ; < 10 is BC,DE
+            blss    ld_bc_de                 ; branch if 00, 01 (BC,DE) <-> reg_A
+
+; else nnnn we have a nnnn value
+    ld_nnnn:
+            movb    (r10)[r11], TEMP    ; fetch nnnn to TEMP
             incw    r10
             movb    (r10)[r11], TEMP+1
             incw    r10
-            movzwl  TEMP, r1
-            addl3    r11, r1, r2        ; make address vax relative
-            cmpb    r3, #3
-            beql    15$                 ; branch if 11
-            movl    ptr_idx, r4
-            brb     30$
-    15$:    movaw   reg_A, r4
-            brb     30$
-    20$:    ; 00, 01
-            movl    ptr_BC[r3], r1
-            addl3   r11, r1, r2         ; make vax relative
-            movaw   reg_A, r4
-    30$:    cmpb    r3, #2
-            beql    m16bit
-            ; 8 bit move 00, 01, 11
-            bbs     #3, r0, 40$
-            movb    (r4), (r2)
+            movzwl  TEMP, r4            ; get the 16bit address in r4
+
+            cmpb    r3, #3              ; 11? LD (nnnn), A
+            beql    bit8                ; branch if 11 (nnnn)<->a
+
+            movl    ptr_idx, r2         ; get index to regPair HL,IX,IY
+            brb     chk16
+
+    ld_bc_de:                           ; 00, 01    Its BC or DE
+            movl    ptr_BC[r3], r1      ; get a pointer in r1
+            movw    (r1), r4            ; the value  of the register in r4
+
+    bit8:   movaw   reg_A, r2           ; get a pointer to reg_A
+
+    chk16:  cmpb    r3, #2
+            beql    ld16_nnnn
+
+    ; 8 bit move 00, 01, 11
+            bbc     #3, r0, ld8_reg2mem
+            movb    (r4)[r11], (r2)     ; move from memory to register
             brw     fetch
         
-    40$:    movb    (r2), (r4)
+    ld8_reg2mem:
+            movb    (r2), (r4)[r11]     ; else move register to memory
+
             brw     fetch
             
             
-m16bit:     bbs     #3, r0, 10$
-            movb    (r4), (r2)+         ; points to a register
+    ld16_nnnn:
+            bbc     #3, r0, ld16_reg2mem         ; check the direction
+
+            movb    (r4)[r11], (r2)+    ; memory to register
             incw    r4
-            movb    (r4), (r2)
+            movb    (r4)[r11], (r2)
             brw     fetch
             
-    10$:    movb    (r2)+, (r4)         ; r2 points to a register
+    ld16_reg2mem:
+            movb    (r2)+, (r4)[r11]    ; register to memory
             incw    r4
-            movb    (r2), (r4)
+            movb    (r2), (r4)[r11]
             brw     fetch
             
+;;;;;;;;;
 op00_011:
             extzv   #4, #2, r0, r3      ; INC/DEC rr
             movl    ptr_BC[r3], r2
@@ -409,102 +482,102 @@ op00_011:
 DECrr:      decw    (r2)
             brw     fetch
             
-op00_100:                               ; INC r
-            extzv   #4, #2, r0, r3      ; get reg pair addr
-            cmpb    r3, #3              ; is it (IDX) or A
-            bneq    12$                 ; branch if not
-            bbs     #3, r0, 15$         ; branch if reg A
-            movzwl  @ptr_IDX, r1        ; else if (HL) or (IX+d) or (IY+d)
-            cmpl    r9, ptr_IDX         ; is HL or indexs
-            beql    10$                 ; branch if HL
-            movzbl  (r10)[r11], r2      ; else fetch offset d
+op00_100:                              ; INC r
+            extzv   #4, #2, r0, r3     ; get reg pair addr
+            cmpb    r3, #3             ; is it (IDX) or A
+            bneq    12$                ; branch if not
+            bbs     #3, r0, 15$        ; branch if reg A
+            movzwl  @ptr_IDX, r1       ; else if (HL) or (IX+d) or (IY+d)
+            cmpl    r9, ptr_IDX        ; is HL or indexs
+            beql    10$                ; branch if HL
+            movzbl  (r10)[r11], r2     ; else fetch offset d
             incw    r10
-            addb2   r2, r1              ; add offset d
-    10$:    addl3   r11, r1, r2         ; cvt z80 address to vax
+            addb2   r2, r1             ; add offset d
+    10$:    addl3   r11, r1, r2        ; cvt z80 address to vax
             brb     20$
     12$:    ; its BC, DE or IDX
-            movl    ptr_BC[r3], r2      ; get address of reg pair
-            bbs     #3, r0, 20$         ; branch if lower 8 bit reg
+            movl    ptr_BC[r3], r2     ; get address of reg pair
+            bbs     #3, r0, 20$        ; branch if lower 8 bit reg
             brb     17$
     15$:    ; its A reg
-            movl    ptr_AF, r2          ; get address of reg_AF
-    17$:    incl    r2                  ; move ptr to upper 8 bit reg
+            movl    ptr_AF, r2         ; get address of reg_AF
+    17$:    incl    r2                 ; move ptr to upper 8 bit reg
     20$:    movzbl  (r2), r0
             incb    (r2)
             movpsl  r3
-            bicb2   #^XD6, reg_F        ; clear S, Z, H, V, N flags
+            bicb2   #^XD6, reg_F       ; clear S, Z, H, V, N flags
             bbc     #1, r3, 21$
-            bisb2   #^x02, reg_F        ; set V flag
+            bisb2   #^x02, reg_F       ; set V flag
     21$:    bbc     #2, r3, 22$
-            bisb2   #^x40, reg_F        ; set Z flag
+            bisb2   #^x40, reg_F       ; set Z flag
     22$:    bbc     s^#3, r3, 23$
-            bisb2   #^x80, reg_F        ; set S flag
-    23$:    bicb2   #^xF0, r0           ; clear upper nibble
+            bisb2   #^x80, reg_F       ; set S flag
+    23$:    bicb2   #^xF0, r0          ; clear upper nibble
             incb    r0
             cmpb    r0, #16
-            bleq    24$                 ; branch if no half carry
-            bisb2   #^x10, reg_F        ; set H flag
+            bleq    24$                ; branch if no half carry
+            bisb2   #^x10, reg_F       ; set H flag
     24$:    brw     fetch
     
-op00_101:                               ; DEC r
-            extzv   #4, #2, r0, r3      ; get reg pair addr
-            cmpb    r3, #3              ; is it (IDX) or A ?
-            bneq    12$                 ; branch if not
-            bbs     #3, r0, 15$         ; branch if reg A
-            movzwl  @ptr_IDX, r1        ; else is (HL) or (IX+d) or (IY+d)
-            cmpl    r9, ptr_IDX         ; is HL or indexs?
-            beql    10$                 ; branch if HL
-            movab   (r10)[r11], r2      ; else fetch offset d
+op00_101:                              ; DEC r
+            extzv   #4, #2, r0, r3     ; get reg pair addr
+            cmpb    r3, #3             ; is it (IDX) or A ?
+            bneq    12$                ; branch if not
+            bbs     #3, r0, 15$        ; branch if reg A
+            movzwl  @ptr_IDX, r1       ; else is (HL) or (IX+d) or (IY+d)
+            cmpl    r9, ptr_IDX        ; is HL or indexs?
+            beql    10$                ; branch if HL
+            movab   (r10)[r11], r2     ; else fetch offset d
             incw    r10
-            addb2   r2, r1              ; add offset
-    10$:    addl3   r11, r1, r2         ; cvt z80 to VAX address
+            addb2   r2, r1             ; add offset
+    10$:    addl3   r11, r1, r2        ; cvt z80 to VAX address
             brb     20$
     12$:    ; irs BC, DE or IDX
-            movl    ptr_BC[r3], r2      ; get address of reg pair
-            bbs     #3, r0, 20$         ; branch if lower 8 bit reg
+            movl    ptr_BC[r3], r2     ; get address of reg pair
+            bbs     #3, r0, 20$        ; branch if lower 8 bit reg
             brb     17$
     15$:    ; its  reg
-            movl    ptr_AF, r2          ; get address of reg AF
-    17$:    incl    r2                  ; move ptr to upper 8 bit reg
+            movl    ptr_AF, r2         ; get address of reg AF
+    17$:    incl    r2                 ; move ptr to upper 8 bit reg
     20$:    movzbl  (r2), r0
             decb    (r2)
             movpsl  r3
-            bicb2   #^xD6, reg_F        ; clear S, Z, H, V, N Flags
-            bisb2   #^x02, reg_F        ; set N flag
+            bicb2   #^xD6, reg_F       ; clear S, Z, H, V, N Flags
+            bisb2   #^x02, reg_F       ; set N flag
             bbc     #1, r3, 21$
-            bisb2   #^x02, reg_F        ; set V flag
+            bisb2   #^x02, reg_F       ; set V flag
     21$:    bbc     #2, r3, 22$
-            bisb2   #^x40, reg_F        ; set Z flag
+            bisb2   #^x40, reg_F       ; set Z flag
     22$:    bbc     #3, r3, 23$
-            bisb2   #^x80, reg_F        ; set S flag
-    23$:    bicb2   #^xF0, r0           ; clar upper nibble
+            bisb2   #^x80, reg_F       ; set S flag
+    23$:    bicb2   #^xF0, r0          ; clar upper nibble
             decb    r0
             cmpb    r0, #^x0f
-            bleq    24$                 ; branch if no half carry
-            bisb2   #^x10, reg_F        ; set H flag
+            bleq    24$                ; branch if no half carry
+            bisb2   #^x10, reg_F       ; set H flag
     24$:    brw     fetch
     
-op00_110:                               ; LD r, n
-            extzv   #4, #2, r0, r3      ; get reg pair addr
-            cmpb    r3, #3              ; is it (IDX) or A
-            bneq    12$                 ; branch if not
-            bbs     #3, r0, 15$         ; branch if reg A
-            movzwl  @ptr_IDX, r1        ; else is (HL) or (IX+d) or (IY+d)
-            cmpl    r9, ptr_IDX         ; is HL or indexs
-            beql    10$                 ; branch if HL
-            movzbl  (r10)[r11], r2      ; else fetch offset d
+op00_110:                              ; LD r, n
+            extzv   #4, #2, r0, r3     ; get reg pair addr
+            cmpb    r3, #3             ; is it (IDX) or A
+            bneq    12$                ; branch if not
+            bbs     #3, r0, 15$        ; branch if reg A
+            movzwl  @ptr_IDX, r1       ; else is (HL) or (IX+d) or (IY+d)
+            cmpl    r9, ptr_IDX        ; is HL or indexs
+            beql    10$                ; branch if HL
+            movzbl  (r10)[r11], r2     ; else fetch offset d
             incw    r10
-            addb2   r2, r1              ; add offset d
-    10$:    addl3   r11, r1, r2         ; cvt z80 to vax addr
+            addb2   r2, r1             ; add offset d
+    10$:    addl3   r11, r1, r2        ; cvt z80 to vax addr
             brb     20$
     12$:    ; its BC DE or IDX
-            movl    ptr_BC[r3], r2      ; get address of reg pair
-    14$:    bbs     #3, r0, 20$         ; branch if lower 8 bit reg
+            movl    ptr_BC[r3], r2     ; get address of reg pair
+    14$:    bbs     #3, r0, 20$        ; branch if lower 8 bit reg
             brb     17$
     15$:    ; its A reg
-            movl    ptr_AF, r2          ; get address of reg AF
-    17$:    incl    r2                  ; move ptr to upper 8 bit reg
-    20$:    movb    (r10)[r11], (r2)    ; fetch n and store
+            movl    ptr_AF, r2         ; get address of reg AF
+    17$:    incl    r2                 ; move ptr to upper 8 bit reg
+    20$:    movb    (r10)[r11], (r2)   ; fetch n and store
             incw    r10
             brw     fetch
             
@@ -520,233 +593,253 @@ op00_111:   ; RLCA, RRCA, RLA, RRA, DAA, CPL, SCF, CCF
                 .word   op00_111_110-10$         ; SCF
                 .word   op00_111_111-10$         ; CCF
                 
-op00_111_000:                           ; RLCA
+op00_111_000:                          ; RLCA
             movzbl  reg_A, r2
             ashl    #1, r2, r2
-    lab02:  bbc     #8, r2, 10$         ; branch if no carry
-            bisb2   #^x01, reg_F        ; else set carry
+    lab02:  bbc     #8, r2, 10$        ; branch if no carry
+            bisb2   #^x01, reg_F       ; else set carry
             bisb2   #^x01, r2
     10$:    movb    r2, reg_A
-            bicb2   #^x12, reg_F        ; clear H, N flags
+            bicb2   #^x12, reg_F       ; clear H, N flags
             brw     fetch
             
-op00_111_001:                           ; RRCA
+op00_111_001:                          ; RRCA
             movzbl  reg_A, r2
             ashl    #-1, r2, r2
             brb     lab02
             
-op00_111_010:                           ; RLA
+op00_111_010:                          ; RLA
             movzbl  reg_A, r2
             ashl    #1, r2, r2
-            blbc    reg_F, 10$          ; test z80 C_flag
-            bisb2   #^x01, r2           ; C was set
-    10$:    bbc     #8, r2, 20$         ; test for carry
-            bisb2   #^x01, reg_F        ; set Z80 C_flag
+            blbc    reg_F, 10$         ; test z80 C_flag
+            bisb2   #^x01, r2          ; C was set
+    10$:    bbc     #8, r2, 20$        ; test for carry
+            bisb2   #^x01, reg_F       ; set Z80 C_flag
     20$:    movb    r2, reg_A
-            bicb2   #^x12, reg_F        ; clear H, N flags
+            bicb2   #^x12, reg_F       ; clear H, N flags
             brw     fetch
             
             
-op00_111_011:                           ; RRA
+op00_111_011:                          ; RRA
             movzbl  reg_A, r2
             ashl    #-1, r2, r3
-            blbc    reg_F, 10$          ; branch if NC
-            bisb2   #^x80, r3           ; C -> bit7
-    10$:    blbc    r2, 20$             ; branch if no bit to carry
-            bisb2   #^x01, reg_F        ; bit0 -> C
-    20$:    bicb2   #^x12, reg_F        ; clear H, N
+            blbc    reg_F, 10$         ; branch if NC
+            bisb2   #^x80, r3          ; C -> bit7
+    10$:    blbc    r2, 20$            ; branch if no bit to carry
+            bisb2   #^x01, reg_F       ; bit0 -> C
+    20$:    bicb2   #^x12, reg_F       ; clear H, N
             movb    r3, reg_A
             brw     fetch
             
             
-op00_111_100:                           ; DAA
+op00_111_100:                          ; DAA
             movzbl  reg_A, r2
-            extzv   #0, #4, r2, r4      ; get lower nibble
-            extzv   #4, #4, r2, r3      ; get upper nibble
+            extzv   #0, #4, r2, r4     ; get lower nibble
+            extzv   #4, #4, r2, r3     ; get upper nibble
             bbs     #1, reg_F, DAA_SUB
 ;DAA_ADD:
             cmpb    r4, #^x09
-            bgtr    10$                 ; branch if >9
-            bbc     #4, reg_F, 20$      ; branch if no add required
-    10$:    addb2   #^x06, r2           ; add to byte
-            addb2   #^x06, r4           ; add to lower nibble
-            bicb2   #^x10, reg_F        ; clear H flag
-            cmpb    r4, #^x0f           ; check for half carry
-            bleq    20$                 ; branch if no half carry
-            bisb2   #^x10, reg_F        ; set half carry
-            incb    r3                  ; add 1 to upper nibble
+            bgtr    10$                ; branch if >9
+            bbc     #4, reg_F, 20$     ; branch if no add required
+    10$:    addb2   #^x06, r2          ; add to byte
+            addb2   #^x06, r4          ; add to lower nibble
+            bicb2   #^x10, reg_F       ; clear H flag
+            cmpb    r4, #^x0f          ; check for half carry
+            bleq    20$                ; branch if no half carry
+            bisb2   #^x10, reg_F       ; set half carry
+            incb    r3                 ; add 1 to upper nibble
     20$:    cmpb    r3, #^x09
-            bleq    40$                 ; branch if add no req (<=9)
-            blbc    reg_F, 40$          ; branch if NC
-            addb3   #^x60, r2, reg_A    ; add to byte
+            bleq    40$                ; branch if add no req (<=9)
+            blbc    reg_F, 40$         ; branch if NC
+            addb3   #^x60, r2, reg_A   ; add to byte
     40$:    movpsl  r3
     
 daa_setflags:
-            bicb2   #^xc5, reg_F        ; clear S, Z, V, C
+            bicb2   #^xc5, reg_F       ; clear S, Z, V, C
             blbc    r3,     31$
-            bisb2   #^x01, reg_F        ; set C flag
+            bisb2   #^x01, reg_F       ; set C flag
     31$:    bbc     #1, r3, 32$
-            bisb2   #^x04, reg_F        ; set V flag
+            bisb2   #^x04, reg_F       ; set V flag
     32$:    bbc     #2, r3, 33$
-            bisb2   #^x40, reg_F        ; set Z flag
+            bisb2   #^x40, reg_F       ; set Z flag
     33$:    bbc     #3, r3, 34$
-            bisb2   #^x80, reg_F        ; set S flag
+            bisb2   #^x80, reg_F       ; set S flag
     34$:    brw     fetch
     
 DAA_SUB:    ; r2 = byte r3 = Hnibble r4 = Lnibble
-            bbc     #4, reg_F, 10$      ; branch if NO half borrow
-            subb2   #^x06, r2           ; sub 6 from byte
-            subb2   #^x06, r4           ; sub 6 from lower nibble
+            bbc     #4, reg_F, 10$     ; branch if NO half borrow
+            subb2   #^x06, r2          ; sub 6 from byte
+            subb2   #^x06, r4          ; sub 6 from lower nibble
             cmpb    r4, #^x0f
-            bleq    10$        ; branch if no half borrow
-            bisb2   #^x10, reg_F        ; set half borrow
-    10$:    blbc    reg_F, 20$            ; branch if no borrow
-            subb2   #^x60, r2            ; sub from byte
+            bleq    10$                ; branch if no half borrow
+            bisb2   #^x10, reg_F       ; set half borrow
+    10$:    blbc    reg_F, 20$         ; branch if no borrow
+            subb2   #^x60, r2          ; sub from byte
     20$:    movb    r2, reg_A
             brb     daa_setflags
             
-op00_111_101:                ; CPL complement A
-        mcomb    reg_A, reg_A
-            bisb2    #^x12, reg_F        ; set H & N flags
-            brw        fetch
+op00_111_101:                          ; CPL complement A
+            mcomb   reg_A, reg_A
+            bisb2   #^x12, reg_F       ; set H & N flags
+            brw     fetch
             
-op00_111_110:                            ; SCF set carry flag
-            bisb2    #^x01, reg_F        ; set carry
-            bicb2    #^x12, reg_F        ; clear H & N flags
-            brw        fetch
+op00_111_110:                          ; SCF set carry flag
+            bisb2   #^x01, reg_F       ; set carry
+            bicb2   #^x12, reg_F       ; clear H & N flags
+            brw     fetch
             
-op00_111_111:                            ; CCF complement carry flag
+op00_111_111:                          ; CCF complement carry flag
             blbc    reg_F, op00_111_110    ; set carry flag
-            bicb2    #^x03, reg_F        ; clear C & N
-            brw        fetch
+            bicb2   #^x03, reg_F       ; clear C & N
+            brw     fetch
             
 ;-----------------------------------------------------------------------
-halt:       movb    s^#1, runflag ; set the halt flag
-            brw     halt_message            ; must continue via brw fetch
-op01:                                    ; LD r, r'
-            cmpb    r0, #^x76            ; is it HALT?
-            beql    halt
-;
-dest:       extzv   #4, #2, r0, r3        ; get dest reg pair addr
-            cmpb    r3, #3                ; is it (IDX) or A
-            bneq    12$                    ; branch if not
-            bbs     #3, r0, 15$            ; branch if reg A?
-            movzwl  @ptr_IDX, r1        ; else is (HL) or (IX+d) or (IY+d)
-            cmpl    r9, ptr_IDX            ; is HL or indexs
-            beql    10$                    ; branch if HL
-            movzbl  (r10)[r11], r2        ; esel fetch offset d
-            incw    r10
-            addb2   r2, r1
-    10$:    addl3   r11, r1, r2            ; cvt z80 address to vax
-            brb     20$
-    12$:    ; irs BC DE or IDX
-            movl    ptr_BC[r3], r2        ; get address of reg pair
-            bbs     #3, r0, 20$            ; branch if lower 8 bit reg
-            brb     17$
-    15$:    ; its A reg
-            movl    ptr_AF, r2            ; get address of reg AF
-    17$:    incl    r2                    ; move ptr to upper 8 bit reg
-    20$:    movl    r2, r4                ; get dest address in r4
+halt:       movb    s^#1, runflag      ; set the halt flag
+            brw     halt_message       ; must continue via brw fetch
 
-src1:        extzv    #1, #2, r0, r3        ; get src reg pair addr
-            cmpb    r3, #3                ; is it (IDX) or A?
-            bneq    12$                    ; branch if not
-            bbs        #0, r0, 15$            ; branch if reg A
-            movzwl    @ptr_IDX, r1        ; else if (HL) or (IX+d) or (IY+d)
-            cmpl    r9, ptr_IDX            ; is HL or indexs?
-            beql    10$                    ; branch if HL
-            movzbl    (r10)[r11], r2        ; else fetch offset d
-            incw    r10
-            addb2    r2, r1                ; add offset d TODO: 2013 how is this wrapped >2^16
-    10$:    addl3    r11, r1, r2            ; cvt z80 address to vax
-            brb        20$
-    12$:    ; its BC DE or IDX
-            movl    ptr_BC[r3], r2        ; get address of reg pair
-            bbs        #0, r0, 20$            ; branch if lower 8 bit reg
-            brb        17$
-    15$:    ; its A reg
-            movl    ptr_AF, r2            ; get address of reg AF
-    17$:    incl    r2                    ; move ptr to upper 8 bit reg
-    20$:    movl    r2, r5                ; src address in r5
-    
-            movb    (r5), (r4)
-            brw        fetch
+op01:                                  ; LD r, r'
+            cmpb    r0, #^x76          ; is it HALT?
+            beql    halt
+
+	    ashl    #-1 ,   r2, r2     ; get src reg pair idx in r2
+            extzv   #4, #2, r0, r3     ; get dst reg pair idx in r3
+; 01{dst r3}{src r2} if the value is 6 the the other operand is (hl) or (IX+d) (IY+d)
+
+; calc src 1st in r4
+  ld_src:   ; r2 is the reg pair index 11,1=AF  11,0 indirect (hl) (ix+d) (iy+d)
+            movaw   reg_BC[r2],  r4    ; src in r4, assume its reg src BC, DE, HL
+            cmpb    r2, #3             ; is it A or (idx)
+            bneq    ld_src_reg         ; branch if that was correct use r4+bit3ofr0
+            ; 11x so its either indirect else reg_A
+            blbs    r0, ld_src_A       ; branch if reg A?
+            ; else bits clear and we talking (hl), (IX+d) or (IY+d)
+            movzwl  @ptr_IDX, r4       ; get contents of z80reg, which it is (HL) or (IX+d) or (IY+d)?
+            cmpl    r9, ptr_IDX        ; does ptr_IDX hold the address of HL which is in vax r9 register?
+            beql    10$                ; branch if HL
+            cvtbl   (r10)[r11], r6     ; else fetch offset d signed extend the d val
+            incw    r10                ; inc PC
+            addl2   r6, r4             ; add the offset to the index (IX+d) (IY+d)
+       10$: addl2   r11, r4            ; r4 now points to a vax address
+            brb     ld_dst
+
+    ld_src_reg:
+            ; r4 holds the pointer to the register pair
+	    bbs     #3, r0, ld_src_low
+	    incl    r4		       ; index to the high byte
+    ld_src_low:
+            ; r4 now points to the vax address of a z80 register
+            brb     ld_dst
+    ld_src_A:
+	    movaw   reg_A,  r4         ; src in r4 is AF or Index or Halt
+	    ;brb     ld_dst            ; just fall through
+
+; calc dst 1st in r5
+  ld_dst:   ; r3 is the reg pair index 11,1=AF  11,0 indirect (hl) (ix+d) (iy+d)
+            movaw   reg_BC[r3],  r5    ; dst in r5, assume its reg dst BC, DE, HL
+            cmpb    r3, #3             ; is it A or (idx)
+            bneq    ld_dst_reg         ; branch if that was correct use r5+bit3ofr0
+            ; 11x so its either indirect else reg_A
+            bbs     #3, r0, ld_dst_A   ; branch if reg A?
+            ; else bits clear and we talking (hl), (IX+d) or (IY+d)
+            movzwl  @ptr_IDX, r5       ; get contents of z80reg, which it is (HL) or (IX+d) or (IY+d)?
+            cmpl    r9, ptr_IDX        ; does ptr_IDX hold the address of HL which is in vax r9 register?
+            beql    10$                ; branch if HL
+            cvtbl  (r10)[r11], r6      ; signed extend fetch offset d
+            incw    r10                ; inc PC
+            addl2   r6, r5             ; add the offset to the index (IX+d) (IY+d)
+       10$: addl2   r11, r5            ; r5 now points to a vax address
+            brb     ld_doit
+
+    ld_dst_reg:
+            ; r5 holds the pointer to the register pair
+	    bbs     #3, r0, ld_dst_low
+	    incl    r5		       ; index to the high byte
+    ld_dst_low:
+            ; r5 now points to the vax address of a z80 register
+            brb     ld_doit
+    ld_dst_A:
+	    movaw   reg_A,  r5         ; src in r4 is AF or Index or Halt
+	    ;brb     ld_doit           ; just fall through
+
+    ld_doit:
+            movb    (r4), (r5)
+            brw     fetch
 ;-------------------------------------------------------------------
 op10:
-src2:       extzv   #1, #2, r0, r3       ; get src reg pair addr
-            cmpb    r3, #3               ; is it (IDX) or A?
-            bneq    12$                  ; branch if not
-            bbs     #0, r0, 15$          ; branch if reg A
-            movzwl  @ptr_IDX, r1         ; else is (HL) or (IX+d) or (IY+d)
-            cmpl    r9, ptr_IDX          ; is HL or indexs
-            beql    10$                  ; branch if HL
-            movzbl  (r10)[r11], r2       ; else fetch offset d
+src2:       extzv   #1, #2, r0, r3     ; get src reg pair addr
+            cmpb    r3, #3             ; is it (IDX) or A?
+            bneq    12$                ; branch if not
+            bbs     #0, r0, 15$        ; branch if reg A
+            movzwl  @ptr_IDX, r1       ; else is (HL) or (IX+d) or (IY+d)
+            cmpl    r9, ptr_IDX        ; is HL or indexs
+            beql    10$                ; branch if HL
+            movzbl  (r10)[r11], r2     ; else fetch offset d
             incw    r10
-            addb2   r2, r1               ; add offset d
-    10$:    addl3   r11, r1, r2          ; cvt z80 address to vax
+            addb2   r2, r1             ; add offset d
+    10$:    addl3   r11, r1, r2        ; cvt z80 address to vax
             brb     20$
     12$:    ; its BC DE or IDX
-            movl    ptr_BC[r3], r2       ; get address of reg pair
-            bbs     #0, r0, 20$          ; branch if lower 8 bit reg
+            movl    ptr_BC[r3], r2     ; get address of reg pair
+            bbs     #0, r0, 20$        ; branch if lower 8 bit reg
             brb     17$
     15$:    ; its A reg
-            movl    ptr_AF, r2           ; get address of reg AF
-    17$:    incl    r2                   ; move ptr to upper 8 bit reg
-    20$:    movl    r2, r5               ; src address in r5
+            movl    ptr_AF, r2         ; get address of reg AF
+    17$:    incl    r2                 ; move ptr to upper 8 bit reg
+    20$:    movl    r2, r5             ; src address in r5
             movzbl  (r5), r3
             
 add_r3toA:    extzv    #3, #3, r0, r2
             caseb    r2, #0, #7
-    10$:        .word    op10_000-10$    ; ADD A, r
-                .word    op10_001-10$    ; ADC A, r
-                .word    op10_010-10$    ; SUB A, r
-                .word    op10_011-10$    ; SBC A, r
-                .word    op10_100-10$    ; AND A, r
-                .word    op10_101-10$    ; XOR A, r
-                .word    op10_110-10$    ; OR  A, r
-                .word    op10_111-10$    ; CP  A, r
-                
-op10_000:                                ; ADD A, r
-            bicb2  #^xD7, reg_F          ; clear S,Z,H,V,N,C
-            bsbw   addr3toA              ; add r3 to A
+    10$:        .word    op10_000-10$  ; ADD A, r
+                .word    op10_001-10$  ; ADC A, r
+                .word    op10_010-10$  ; SUB A, r
+                .word    op10_011-10$  ; SBC A, r
+                .word    op10_100-10$  ; AND A, r
+                .word    op10_101-10$  ; XOR A, r
+                .word    op10_110-10$  ; OR  A, r
+                .word    op10_111-10$  ; CP  A, r
+               
+op10_000:                              ; ADD A, r
+            bicb2  #^xD7, reg_F        ; clear S,Z,H,V,N,C
+            bsbw   addr3toA            ; add r3 to A
             brw    fetch
             
-op10_001:                                ; ADC A, r
-            bicb2  #^xD7, reg_F          ; clear S,Z,H,V,N,C
-            blbc   reg_F, 10$            ; branch if NC
-            movl   r3, r7                ; save r3
+op10_001:                              ; ADC A, r
+            bicb2  #^xD7, reg_F        ; clear S,Z,H,V,N,C
+            blbc   reg_F, 10$          ; branch if NC
+            movl   r3, r7              ; save r3
             movzbl #1, r3
             bsbw   addr3toA
             movl   r7, r3
     10$:    bsbw   addr3toA
             brw    fetch
             
-op10_010:                                ; SUB A, r
-            bisb2  #^x02, reg_F          ; set N_flags
-            bicb2  #^xD5, reg_F          ; clear S,Z,H,V,C flags
+op10_010:                              ; SUB A, r
+            bisb2  #^x02, reg_F        ; set N_flags
+            bicb2  #^xD5, reg_F        ; clear S,Z,H,V,C flags
             bsbw   subr3toA
             brw    fetch
             
-op10_011:                                ; SBC A, r
-            bisb2  #^x02, reg_F          ; set N flags
-            bicb2  #^xD5, reg_F          ; clear S,Z,H,V,C flags
-            blbc   reg_F, 10$            ; branch NC
-            movl   r3, r7                ; save r3
+op10_011:                              ; SBC A, r
+            bisb2  #^x02, reg_F        ; set N flags
+            bicb2  #^xD5, reg_F        ; clear S,Z,H,V,C flags
+            blbc   reg_F, 10$          ; branch NC
+            movl   r3, r7              ; save r3
             movzbl #1, r3
             bsbw   subr3toA
             movl   r7, r3
     10$:    bsb    subr3toA
             brw    fetch
             
-addr3toA:                                ; subroutine to add r3 to reg_A
-            extzv  #0, #4, r3, r4        ; get lower nibble in r3
-            extzv  #0, #4, reg_A, r6    ; get lower nibble of A in r6
-            addb2  r4, r6                ; add lower nibbles
+addr3toA:                              ; subroutine to add r3 to reg_A
+            extzv  #0, #4, r3, r4      ; get lower nibble in r3
+            extzv  #0, #4, reg_A, r6   ; get lower nibble of A in r6
+            addb2  r4, r6              ; add lower nibbles
             cmpb   r6, #^x0F
-            bleq   no_H1                ; branch if no Half Carry
+            bleq   no_H1               ; branch if no Half Carry
             bisb2  #^x10, reg_F        ; set H_flag
     no_H1:
-            addb2  r3, reg_A            ; do add set vax flags
+            addb2  r3, reg_A           ; do add set vax flags
             movpsl r2
             blbc   r2, 31$
             bisb2  #^x01, reg_F        ; set C flag
@@ -758,15 +851,15 @@ addr3toA:                                ; subroutine to add r3 to reg_A
             bisb2  #^x80, reg_F        ; set S flag
     34$:    rsb
     
-subr3toA:                                ; subroutine to sub r3 to reg_A
-            extzv  #0, #4, r3, r4        ; get lower nibble in r3
-            extzv  #0, #4, reg_A, r6    ; get lower nibble of A in r6
-            subb2  r4, r6                ; sub lower nibbles
+subr3toA:                              ; subroutine to sub r3 to reg_A
+            extzv  #0, #4, r3, r4      ; get lower nibble in r3
+            extzv  #0, #4, reg_A, r6   ; get lower nibble of A in r6
+            subb2  r4, r6              ; sub lower nibbles
             cmpb   r6, #^x0F
-            bleq   no_H2                ; branch if no Half Carry
+            bleq   no_H2               ; branch if no Half Carry
             bisb2  #^x10, reg_F        ; set H_flag
     no_H2:
-            subb2  r3, reg_A            ; do sub set vax flags
+            subb2  r3, reg_A           ; do sub set vax flags
             movpsl r2
             blbc   r2, 31$
             bisb2  #^x01, reg_F        ; set C flag
@@ -778,7 +871,7 @@ subr3toA:                                ; subroutine to sub r3 to reg_A
             bisb2  #^x80, reg_F        ; set S flag
     34$:    rsb
     
-op10_100:                                ; AND A, r
+op10_100:                              ; AND A, r
             bisb2  #^x10, reg_F        ; set H
             bicb2  #^xC7, reg_F        ; clear S, Z, P, N, C
             mcomb  r3, r3
@@ -791,79 +884,80 @@ logsetflags:
             bisb2  #^x80, reg_F        ; set S flag
     34$:    movl   #7, r2
             clrl   r4
-    40$:    bbc    r2, reg_A, 50$        ; branch if bit not set
-            mcoml  r4, r4                ; toggle r3 on/off
-    50$:    sobgeq r2, 40$                ; loop for 8 bits
+    40$:    bbc    r2, reg_A, 50$      ; branch if bit not set
+            mcoml  r4, r4              ; toggle r3 on/off
+    50$:    sobgeq r2, 40$             ; loop for 8 bits
             tstl   r4
             beql   60$
             bisb   #^x04, reg_F        ; set P flag
     60$:    brw    fetch
     
-op10_101:                                ; XOR A, r
-            bicb2    #^xD7, reg_F        ; clear S, Z, H, P, N, C
-            xorb2    r3, reg_A
-            brb        logsetflags
-op10_110:                                ; OR A, r
-            bicb2    #^D7, reg_F            ; clear S,Z,H,P,N,C
-            bisb2    r3, reg_A            ; or reg_A with r3
-            brb        logsetflags
+op10_101:                              ; XOR A, r
+            bicb2  #^xD7, reg_F        ; clear S, Z, H, P, N, C
+            xorb2  r3, reg_A
+            brb    logsetflags
+op10_110:                              ; OR A, r
+            bicb2  #^D7, reg_F         ; clear S,Z,H,P,N,C
+            bisb2  r3, reg_A           ; or reg_A with r3
+            brb    logsetflags
             
-op10_111:                                ; CP A, r
-            bicb2    #^xD5, reg_F        ; clear S,Z,H,P,C
-            bisb2    #^x02, reg_F        ; set N
-            movb    reg_A, r7            ; temp save reg_A
-            bsbw    subr3toA            ; sub neg(r3) to reg_A
-            movb    r7, reg_A            ; restore reg_A
-            brw        fetch
+op10_111:                              ; CP A, r
+            bicb2  #^xD5, reg_F        ; clear S,Z,H,P,C
+            bisb2  #^x02, reg_F        ; set N
+            movb   reg_A, r7            ; temp save reg_A
+            bsbw   subr3toA            ; sub neg(r3) to reg_A
+            movb   r7, reg_A           ; restore reg_A
+            brw    fetch
 ;---------------------------------------------------------------
 op11:
-            ;extzv    #0, #3, r0, r2 ; already done just after fetched:
+            ;extzv    #0, #3, r0, r2   ; already done just after fetched:
             caseb    r2, #0, #7
-    10$:        .word    op11_000-10$    ; RET ccc
-                .word    op11_001-10$    ; POP rr, RET, EXX, PCHL, SPHL
-                .word    op11_010-10$    ; JP ccc, pq
-                .word    op11_011-10$    ; CB group, OUT, IN, EX (SP), HL, EX DE,HL,DI, EI
-                .word    op11_100-10$    ; CALL ccc, pq
-                .word    op11_101-10$    ; PUSH rr, CALL pq, DD IX, ED group, FD IY
-                .word    op11_110-10$    ; reg_A, n instructions
-                .word    op11_111-10$    ; RST
+    10$:        .word    op11_000-10$  ; RET ccc
+                .word    op11_001-10$  ; POP rr, RET, EXX, PCHL, SPHL
+                .word    op11_010-10$  ; JP ccc, pq
+                .word    op11_011-10$  ; CB group, OUT, IN, EX (SP), HL, EX DE,HL,DI, EI
+                .word    op11_100-10$  ; CALL ccc, pq
+                .word    op11_101-10$  ; PUSH rr, CALL pq, DD IX, ED group, FD IY
+                .word    op11_110-10$  ; reg_A, n instructions
+                .word    op11_111-10$  ; RST
+             brw      halt              ; unreachable
     FLGTBL:    .byte    6,0,2,7
     
-op11_000:                                ; RET ccc
-            extzv    #4, #2, r0, r2
-            movzbl    FLGTBL[r2], r2        ; get bit pos of flag
-            bbs        #3, r0, 10$            ; branch if set req
-            bbc        r2, reg_F, 20$        ; branch for RET
-            brb        end_RET
-    10$:    bbc        r2, reg_F, end_RET
+op11_000:                              ; RET ccc
+            extzv   #4, #2, r0, r2
+            movzbl  FLGTBL[r2], r2     ; get bit pos of flag
+            bbs     #3, r0, 10$        ; branch if set req
+            bbc     r2, reg_F, 20$     ; branch for RET
+            brb     end_RET
+    10$:    bbc     r2, reg_F, end_RET
     20$:
 op_RET:
-            movzwl    reg_SP, r2
-            movb    (r2)[r11], TEMP_PC
+            movzwl  reg_SP, r2
+            movb    (r2)[r11], NEW_PC
             incw    r2
-            movb    (r2)[r11], TEMP_PC+1
+            movb    (r2)[r11], NEW_PC+1
             incw    r2
             movw    r2, reg_SP
-            movzwl    TEMP_PC, r10
- end_RET:    brw        fetch
+            movzwl  NEW_PC, r10
+ end_RET:   brw     fetch
  
- op11_001:                                ; POP rr, RET, EXX, PCHL, SPHL
-             extzv    #4, #2, r0, r2        ; get register#
-             bbs        #3, r0, 50$            ; branch if not POP rr
-             cmpb    r2, #3
-             bneq    10$                    ; branch if not AF reg
-             movl    ptr_AF, r3            ; get dest address in r3
-             brb        20$                    ; branch if not AF reg
-     10$:    movl    ptr_BC[r2], r3        ; get dest address in r3
-     20$:    movzwl    reg_SP, r2
-             movb    (r2)[r11], (r3)+
-             incw    r2
-             movb    (r2)[r11], (r3)
-             incw    r2
-             movw    r2, reg_SP
-             brw     fetch
+ op11_001:                             ; POP rr, RET, EXX, PCHL, SPHL
+            extzv   #4, #2, r0, r2     ; get register#
+            bbs     #3, r0, 50$        ; branch if not POP rr
+            cmpb    r2, #3
+            bneq    10$                ; branch if not AF reg
+            movl    ptr_AF, r3         ; get dest address in r3
+            brb     20$                ; branch if not AF reg
+     10$:   movl    ptr_BC[r2], r3     ; get dest address in r3
+     20$:   movzwl  reg_SP, r2
+            movb    (r2)[r11], (r3)+
+            incw    r2
+            movb    (r2)[r11], (r3)
+            incw    r2
+            movw    r2, reg_SP
+            brw     fetch
              
-     50$:    ; r2 = op, 00=RET/ 01=EXX/ 10=JP (HL)/ 11=LD SP, HL
+     50$:   ; r2 = op, 00=RET/ 01=EXX/ 10=JP (HL)/ 11=LD SP, HL
             tstb    r2
             beql    op_RET
             cmpb    r2, #2
@@ -871,71 +965,77 @@ op_RET:
             beql    op_PCHL
             ;bgtr   op_SPHL
              
-op_SPHL:    movw    @ptr_IDX, reg_SP      ; HL->SP
+op_SPHL:    movw    @ptr_IDX, reg_SP  ; HL->SP
             brw     fetch
             
-op_PCHL:    movw    @ptr_IDX, reg_SP      ; HL->PC
+op_PCHL:    movw    @ptr_IDX, reg_SP  ; HL->PC
             brw     fetch
             
-op_EXX:     movl    reg_BC, r2            ; BC,DE ->r2
-            movw    reg_HL, r3            ; HL->r3
+op_EXX:     movl    reg_BC, r2        ; BC,DE ->r2
+            movw    reg_HL, r3        ; HL->r3
             
-            movl    reg_BC2, reg_BC       ; BC2,DE2-> BC,DE
+            movl    reg_BC2, reg_BC   ; BC2,DE2-> BC,DE
             movw    reg_HL2, reg_HL
             
-            movl    r2, reg_BC2           ; BC,DE -> BC2, DE2
-            movw    r3, reg_HL2           ; HL->HL2
+            movl    r2, reg_BC2       ; BC,DE -> BC2, DE2
+            movw    r3, reg_HL2       ; HL->HL2
             brw     fetch
             
-op11_010:                                 ; JP ccc, pq
-            movb    (r10)[r11], TEMP_PC   ; fetch the jump address from z80 memory into TEMP_PC
+op11_010:                             ; JP ccc, pq
+            movb    (r10)[r11], NEW_PC ; fetch the jump address from z80 memory into NEW_PC
             incw    r10
-            movb    (r10)[r11], TEMP_PC+1
+            movb    (r10)[r11], NEW_PC+1
             incw    r10
-            extzv   #4, #2, r0, r2        ; get the ccc in r2
-            movzbl  FLGTBL[r2], r2        ; get bit pos of flag
-            bbs     #3, r0, 10$           ; branch if set req
-            bbc     r2, reg_F, 20$        ; branch for JMP
+            extzv   #4, #2, r0, r2    ; get the ccc in r2
+            movzbl  FLGTBL[r2], r2    ; get bit pos of flag
+            bbs     #3, r0, 10$       ; branch if set req
+            bbc     r2, reg_F, 20$    ; branch for JMP
             brb     30$
-    10$:    bbc     r2, reg_F, 30$        ; branch if No JMP
-    20$:    movw    TEMP_PC, r10          ; do JMP
+    10$:    bbc     r2, reg_F, 30$    ; branch if No JMP
+    20$:    movw    NEW_PC, r10      ; do JMP
     30$:    brw     fetch
             
-op11_011:   extzv    #3, #3, r0, r2
-            caseb    r2, #0, #7
-    10$:        .word op11_011_000-10$    ; JP pq
-                .word op11_011_001-10$    ; CB group
-                .word op11_011_010-10$    ; OUT (n), A
-                .word op11_011_011-10$    ; IN A, (n)
-                .word op11_011_100-10$    ; EX (SP), HL
-                .word op11_011_101-10$    ; EX DE, HL
-                .word op11_011_110-10$    ; DI
-                .word op11_011_111-10$    ; EI
+op11_011:   extzv   #3, #3, r0, r2
+            caseb   r2, #0, #7
+    10$:        .word op11_011_000-10$ ; JP pq
+                .word op11_011_001-10$ ; CB group
+                .word op11_011_010-10$ ; OUT (n), A
+                .word op11_011_011-10$ ; IN A, (n)
+                .word op11_011_100-10$ ; EX (SP), HL
+                .word op11_011_101-10$ ; EX DE, HL
+                .word op11_011_110-10$ ; DI
+                .word op11_011_111-10$ ; EI
                 
-op11_011_000:                            ; JP pq
-            movb    (r10)[r11], TEMP_PC
+op11_011_000:                          ; JP pq
+            movb    (r10)[r11], NEW_PC
             incw    r10
-            movb    (r10)[r11], TEMP_PC+1
+            movb    (r10)[r11], NEW_PC+1
             incw    r10
-            movw    TEMP_PC, r10
+            movw    NEW_PC, r10
             brw     fetch
             
 ;op11_011_001 see below this is the CB group
 
-op11_011_010:                            ; OUT (n), A
-            movzbl  (r10)[r11], r2        ; fetch n
+op11_011_010:                          ; OUT (n), A
+            movzbl  (r10)[r11], r2     ; fetch n
             incw    r10
+            pushl   r2
+            movzbl  reg_A, -(sp)
+            calls   #2, z80_out
             brw     fetch
             
-op11_011_011:                            ; IN A, (n)
-            movzbl  (r10)[r11], r2        ; fetch n
+op11_011_011:                          ; IN A, (n)
+            movzbl  (r10)[r11], r2     ; fetch n
             incw    r10
-            clrb    reg_A                ; return 0
+            pushl   r2
+            calls   #1, z80_in
+            movb    r0, reg_A
+            ;clrb    reg_A              ; return 0
             brw     fetch
 
-op11_011_100:                            ; EX (SP), HL
-            movzwl  reg_SP, r1            ; get stack ptr
-            movl    ptr_IDX, r2            ; get address of index reg
+op11_011_100:                          ; EX (SP), HL
+            movzwl  reg_SP, r1         ; get stack ptr
+            movl    ptr_IDX, r2        ; get address of index reg
             movb    (r2), r3
             movb    (r1)[r11], (r2)
             movb    r3, (r1)[r11]
@@ -946,45 +1046,48 @@ op11_011_100:                            ; EX (SP), HL
             movb    r3, (r1)[r11]
             brw     fetch
             
-op11_011_101:                            ; EX DE, HL
+op11_011_101:                          ; EX DE, HL
             movw    reg_DE, r2
             movw    @ptr_IDX, reg_DE
             movw    r2, @ptr_IDX
             brw     fetch
         
-op11_011_110:                            ; DI
-op11_011_111:                            ; DE
-            nop
+op11_011_110:                          ; DI
+            movb     #^xff, intflg
+            brw      fetch
+
+op11_011_111:                          ; DE
+            clrb     intflg
             brw      fetch
             
-op11_011_001:                            ; CB group
-            movzbl   (r10)[r11], r0        ; fetch opcode
+op11_011_001:                          ; CB group
+            movzbl   (r10)[r11], r0    ; fetch opcode
             incw     r10
-            extzv    #1, #2, r0, r3        ; get reg pair addr
-            cmpb     r3, #3                ; is it (IDX) or A
-            bneq     12$                    ; branch if not
-            blbs     r0, 15$                ; branch if reg A
-            movzwl   @ptr_IDX, r1        ; else is (HL) or (IX+d) or (IY+d)
-            cmpl     r9, ptr_IDX            ; is HL or indexs?
-            beql     10$                    ; branch if HL
-            movzbl   (r10)[r11], r2        ; else fetch offset d
+            extzv    #1, #2, r0, r3    ; get reg pair addr
+            cmpb     r3, #3            ; is it (IDX) or A
+            bneq     12$               ; branch if not
+            blbs     r0, 15$           ; branch if reg A
+            movzwl   @ptr_IDX, r1      ; else is (HL) or (IX+d) or (IY+d)
+            cmpl     r9, ptr_IDX       ; is HL or indexs?
+            beql     10$               ; branch if HL
+            movzbl   (r10)[r11], r2    ; else fetch offset d
             incw     r10
-            addb2    r2, r1                ; add offset d
-    10$:    addl3    r11, r1, r2            ; cvt z80 address to vax
+            addb2    r2, r1            ; add offset d
+    10$:    addl3    r11, r1, r2       ; cvt z80 address to vax
             brb      20$
     12$:    ; its BC, DE or IDX
-            movl     ptr_BC[r3], r2        ; get address of reg pair
-            blbs     r0, 20$                ; branch if lower 8 bit reg
+            movl     ptr_BC[r3], r2    ; get address of reg pair
+            blbs     r0, 20$           ; branch if lower 8 bit reg
             brb      17$
     15$:    ; its A reg
-            movl     ptr_AF, r2            ; get address of reg AF
-    17$:    incl     r2                    ; move ptr to upper 8 bit reg
+            movl     ptr_AF, r2        ; get address of reg AF
+    17$:    incl     r2                ; move ptr to upper 8 bit reg
     20$:    ; r2 now points to reg
             extzv    #6, #2, r0, r5
             beql     reg_ops
             extzv    #3, #3, r0, r3
             movl     #1, r4
-            ashl     r3, r4, r4            ; create bit mask in r4
+            ashl     r3, r4, r4        ; create bit mask in r4
             cmpb     r5, #2
             blss     op_BIT
             beql     op_RES
@@ -995,197 +1098,210 @@ op_SET:     bisb2    r4, (r2)
 op_RES:     bicb2    r4, (r2)
             brw        fetch
             
-op_BIT:     bicb2    #^x42, reg_F        ; clear Z, N
-            bisb2    #^x10, reg_F        ; set H
-            bitb     r4, (r2)            ; set bit
+op_BIT:     bicb2    #^x42, reg_F      ; clear Z, N
+            bisb2    #^x10, reg_F      ; set H
+            bitb     r4, (r2)          ; set bit
             beql     10$
-            bisb2    #^x40, reg_F        ; set Z flag
+            bisb2    #^x40, reg_F      ; set Z flag
     10$:    brw      fetch
     
 reg_ops:
             movzbl   (r2), r4
-            bicb2    #^xD6, reg_F       ; clear S,Z,H,P,N
-            extzv    #3, #3, r0, r3     ; get opcode
+            bicb2    #^xD6, reg_F      ; clear S,Z,H,P,N
+            extzv    #3, #3, r0, r3    ; get opcode
             caseb    r3, #0, #7
-    10$:        .word opCB_00_000-10$   ; RLC
-                .word opCB_00_001-10$   ; RRC
-                .word opCB_00_010-10$   ; RR
-                .word opCB_00_011-10$   ; RL
-                .word opCB_00_100-10$   ; SLA
-                .word opCB_00_101-10$   ; SRA
-                .word fetch-10$         ; Not DEFINED opCB_00_110 
-                .word opCB_00_111-10$   ; SRL
+    10$:        .word opCB_00_000-10$  ; RLC
+                .word opCB_00_001-10$  ; RRC
+                .word opCB_00_010-10$  ; RR
+                .word opCB_00_011-10$  ; RL
+                .word opCB_00_100-10$  ; SLA
+                .word opCB_00_101-10$  ; SRA
+                .word unknown_op-10$   ; Not DEFINED opCB_00_110 
+                .word opCB_00_111-10$  ; SRL
                 
-opCB_00_000:                            ; RLC
-            bicb2    #^x01, reg_F       ; clear C
+opCB_00_000:                           ; RLC
+            bicb2    #^x01, reg_F      ; clear C flag
             ashl     #1, r4, r4
             bbc      #8, r4, 10$
-            bisb2    #^x01, reg_F       ; set C
-            bisb2    #^x01, r4          ; bit 8 -> bit 0
+            bisb2    #^x01, reg_F      ; set C flag
+            bisb2    #^x01, r4         ; bit 8 -> bit 0
     10$:    brw      CBsetflags
    
     
-opCB_00_001:                            ; RRC
-            bicb2   #^x01, reg_F        ; clear C
+opCB_00_001:                           ; RRC
+            bicb2   #^x01, reg_F       ; clear C
             blbc    r4, 10$
-            bisb2   #^x01, reg_F        ; set C bit0 -> C
-            bisw2   #^x100, r4          ; set bit8 to bit0
+            bisb2   #^x01, reg_F       ; set C bit0 -> C
+            bisw2   #^x100, r4         ; set bit8 to bit0
     10$:    ashl    #-1, r4, r4
             brw     CBsetflags
             
-opCB_00_010:                            ; RL
+opCB_00_010:                           ; RL
             ashl    #1, r4, r4
-            blbc    reg_F, 10$          ; branch NC
-            bisb2   #^x01, r4           ; C->bit 0
-    10$:    bicb2   #^x01, reg_F        ; clear C
+            blbc    reg_F, 10$         ; branch NC
+            bisb2   #^x01, r4          ; C->bit 0
+    10$:    bicb2   #^x01, reg_F       ; clear C
             bbc     #8, r4, 20$
             bisb2   #^x01, reg_F
     20$:    brb     CBsetflags
 
-opCB_00_011:                            ; RR
-            blbc    reg_F, 10$          ; branch NC
-            bisw2   #^x100, r4          ; set bit8 C -> bit8
+opCB_00_011:                           ; RR
+            blbc    reg_F, 10$         ; branch NC
+            bisw2   #^x100, r4         ; set bit8 C -> bit8
     10$:    blbc    r4, 20$
-            bisb2   #^x01, reg_F        ; set C flag
+            bisb2   #^x01, reg_F       ; set C flag
     20$:    ashl    #-1, r4, r4
             brb     CBsetflags
             
-opCB_00_100:                            ; SLA
-            bisb2    #^x01, reg_F       ; clear C
+opCB_00_100:                           ; SLA
+            bisb2    #^x01, reg_F      ; clear C
             ashl     #1, r4, r4
             bbc      #8, r4, 10$
-            bicb2    #^x01, reg_F       ; bit7 ->C
+            bicb2    #^x01, reg_F      ; bit7 ->C
             bisb2    #^x01, reg_F
     10$:    brb      CBsetflags
     
-opCB_00_101:                            ; SRA
-            bisb2   #^x01, reg_F        ; clear C
+opCB_00_101:                           ; SRA
+            bisb2   #^x01, reg_F       ; clear C
             blbc    r4, 10$
-            bisb2   #^x01, reg_F        ; bit0 ->C
+            bisb2   #^x01, reg_F       ; bit0 ->C
     10$:    bbc     #7, r4, 20$
-            bisw2   #^x100, r4          ; bit7 ->bit8
-    20$:    ashl    #-1, r4, r4         ; shift right 1
+            bisw2   #^x100, r4         ; bit7 ->bit8
+    20$:    ashl    #-1, r4, r4        ; shift right 1
             brb     CBsetflags
             
-opCB_00_111:                            ; SRL
-            bicb2   #^x01, reg_F        ; clear C
+opCB_00_111:                           ; SRL
+            bicb2   #^x01, reg_F       ; clear C
             blbc    r4, 10$
-            bicb2   #^x01, reg_F        ; bit0 ->C
+            bicb2   #^x01, reg_F       ; bit0 ->C
     10$:    ashl    #1, r4, r4
-            ;brb    CBsetflags 		 ; fall through to code no need to branch
+            ;brb    CBsetflags          ; fall through to code no need to branch
             
 CBsetflags:    ; set S, Z, P
             movb    r4, (r2)
             beql    10$
-            bisb2   #^x40, reg_F        ; set Z flag
+            bisb2   #^x40, reg_F       ; set Z flag
     10$:    bbc     #7, r4, 20$
-            bisb2   #^x80, reg_F        ; set S flag
+            bisb2   #^x80, reg_F       ; set S flag
     20$:    clrl    r3
             movl    #7, r2
     40$:    bbc     r2, r4, 50$
-            mcoml   r4, r4                ; toggle r4 on/off
+            mcoml   r4, r4             ; toggle r4 on/off
     50$:    sobgeq  r2, 40$
             tstl    r4
             beql    60$
-            bisb2   #^x04, reg_F        ; set P flag
+            bisb2   #^x04, reg_F       ; set P flag
     60$:    brw     fetch
     
-op11_100:                                ; CALL ccc, pq
-            movb    (r10)[r11], TEMP_PC
+op11_100:                              ; CALL ccc, pq
+            movb    (r10)[r11], NEW_PC
             incw    r10
-            movb    (r10)[r11], TEMP_PC+1
+            movb    (r10)[r11], NEW_PC+1
             incw    r10
             extzv   #4, #2, r0, r2
-            movzbl  FLGTBL[r2], r2        ; get bit pos of flag
-            bbs     #3, r0, 10$            ; branch if set req
-            bbc     r2, reg_F, 20$        ; branch for JMP
+            movzbl  FLGTBL[r2], r2     ; get bit pos of flag
+            bbs     #3, r0, 10$        ; branch if test set req
+            bbc     r2, reg_F, docall  ; else check not set, clear  branch for CALL
             brw     fetch
-    10$:    bbs     r2, reg_F, 20$        ; branch for JMP
+    10$:    bbs     r2, reg_F, docall  ; branch for CALL
             brw     fetch
-    20$:
-endcall:    movw    reg_SP, r2
-            movw    r10, TEMP
-            movw    TEMP_PC, r10        ; doJMP
-            decw    r2                    ; sp-1
-            movb    TEMP+1, (r2)[r11]    ; push Ret addr LOW
-            decw    r2                    ; sp-1
-            movw    TEMP, (r2)[r11]        ; push Ret addr HIGH
-            movw    r2, reg_SP
+
+
+docall:     
+            movw    r10, TEMP          ; zPC to TEMP
+            movw    NEW_PC, r10        ; doJMP
+
+            movw    reg_SP, r2         ; get the Z80 Stackpointer  word
+            decw    r2                 ; sp-1
+            movb    TEMP+1, (r2)[r11]  ; push Ret addr LOW
+            decw    r2                 ; sp-1
+            movb    TEMP, (r2)[r11]    ; push Ret addr HIGH
+            movw    r2, reg_SP         ; save r2 back as stackpointer
             brw     fetch
             
-op11_101:
-            extzv   #4, #2, r0, r2        ; get register#
-            bbs     #3, r0, 50$            ; branch if not PUSH rr
-            cmpb    r2, #3                ; is it AF
-            bneq    10$                    ; branch if not AF
-            movl    ptr_AF, r3            ; get address of register in r3
+op11_101:   extzv   #4, #2, r0, r2     ; get register#
+            bbs     #3, r0, 50$        ; branch if not PUSH rr
+            cmpb    r2, #3             ; is it AF
+            bneq    10$                ; branch if not AF
+            movl    ptr_AF, r3         ; get address of register in r3
             brb     20$
-    10$:    movl    ptr_BC[r2], r3        ; get address of register in r3
+    10$:    movl    ptr_BC[r2], r3     ; get address of register in r3
     20$:    movzwl  reg_SP, r2
             decw    r2
-            movb    b^1(r3), (r2)[r11]    ; High register to stack
+            movb    b^1(r3), (r2)[r11] ; High register to stack
             decw    r2
-            movb    (r3), (r2)[r11]  ; Low register to stack
+            movb    (r3), (r2)[r11]    ; Low register to stack
             movw    r2, reg_SP
             brw     fetch
-    50$:    beql    op_CALL
-            cmpb    r2, #2
-            blss    op_DD                ; use IX
-            beql    op_ED                ; ED group
-            ;bgtr   op_FD                ; use IY  no need to branch fall through this is the next label
 
-op_FD:                                    ; use IY
+    50$:    
+            caseb   r2, #0, #4
+     51$:         .word  op_CALL-51$  ; CD CALL
+                  .word  op_DD-51$    ;  01 = DD use IX
+                  .word  op_ED-51$    ;  10 = ED ED group
+                  .word  op_FD-51$    ;  11 = FD use IY
+            brw   unknown_op
+
+op_CALL:    movb    (r10)[r11], NEW_PC   ; fetch the address to call into NEW_PC
+            incw    r10
+            movb    (r10)[r11], NEW_PC+1
+            incw    r10
+            brw     docall
+
+; 2016feb not so simple next opcode can be different
+;DDCBddCr  SET 0,(IX+dd),r  r={B,C,D,E,H,L,A}
+;So for example with the last instruction, the value of (IX+10h) with bit 0 set is also stored in register A.
+;The DDCB BIT instructions do not store any value; they merely test a bit. Thatbis why the undocumented DDCB BIT instructio
+ns are no different from the official ones:
+;3.6
+;
+op_FD:                                 ; use IY
             movaw   reg_IY, ptr_IDX
             brw     fetch2
-op_DD:                                    ; use IX
+op_DD:                                 ; use IX
             movaw   reg_IX, ptr_IDX
             brw     fetch2
 
-op_CALL:    movb    (r10)[r11], TEMP_PC
-            incw    r10
-            movb    (r10)[r11], TEMP_PC+1
-            incw    r10
-            brw     endcall
             
-op_ED:                                    ; ED group
-            movzbl  (r10)[r11], r0        ; fetch op code
+op_ED:                                 ; ED group
+            movzbl  (r10)[r11], r0     ; fetch op code
             incw    r10
             extzv   #0, #3, r0, r3
             extzv   #6, #2, r0, r2
-            beql    opED_00
-            cmpb    r2, #2
-            blss    opED01
-            beql    opED10
-            bgtr    opED_11
+            caseb   r2, #0, #3
+    10$:          .word opED_00-10$    ; unknown_op's
+                  .word opED_01-10$   
+                  .word opED_10-10$   
+                  .word opED_11-10$    ; BIOS ops
+            brw     unknown_op         ; unreachable
+            
 opED_00:
-            brw     fetch                ; NOP
-opED01:     brw     opED_01
-opED10:     brw     opED_10
+            brw     unknown_op          ; NOP
 
 opED_11:
             extzv    #0, #6, r0, r3
             caseb    r3, #0, #9
-    10$:        .word    const-10$         ; C0
-                .word    conout-10$        ; C1
-                .word    diskio-10$        ; C2
-                .word    diskio-10$        ; C3
-                .word    read_rdr-10$      ; C4
-                .word    write_pun-10$     ; C5
-                .word    write_lpt-10$     ; C6
-                .word    flash-10$         ; C7
-                .word    OFFLOAD-10$       ; C8 DISKIO BC BYTES
-                .word    BLOCKWRITE-10$    ; C9 DISKIO BC BYTES
-            brw     fetch                  ; NOP 
+    10$:        .word    const-10$     ; C0
+                .word    conout-10$    ; C1
+                .word    diskio-10$    ; C2
+                .word    diskio-10$    ; C3
+                .word    read_rdr-10$  ; C4
+                .word    write_pun-10$ ; C5
+                .word    write_lpt-10$ ; C6
+                .word    flash-10$     ; C7
+                .word    OFFLOAD-10$   ; C8 DISKIO BC BYTES
+                .word    BLOCKWRITE-10$; C9 DISKIO BC BYTES
+            brw     unknown_op         ; unreachable
                 
 diskio:
             movzwl  reg_HL, r1
             addl3   r1, r11, r8
-            $RAB_STORE  rab=drive_A$RAB    ,-
-                        RBF=(r8)           ,-
-                        UBF=(r8)        ; set buff address
+            $RAB_STORE  rab=drive_A$RAB  ,-
+                        RBF=(r8)         ,-
+                        UBF=(r8)         ; set buff address
             movzbl  reg_D, r2            ; Trk no
             movzbl  reg_E, r4            ; sec no
-            mull2   #REC128_TRK, r2        ; trks * sec/trk
+            mull2   #REC128_TRK, r2      ; trks * sec/trk
             addl3   r2, r4, rec_no
             $FIND   drive_A$RAB
             bsbw    error
@@ -1207,15 +1323,15 @@ readtdse:
             brw     op_RET
             
 read_rdr:
-            tstw    rdr$FAB+FAB$W_IFI    ; is the file open
-            bneq    10$                    ; branch if yes
+            tstw    rdr$FAB+FAB$W_IFI   ; is the file open
+            bneq    10$                 ; branch if yes
             $OPEN   rdr$FAB
             bsbw    error
             $CONNECT rdr$RAB
             bsbw    error
             clrw    rdrptr
     10$:    cmpw    rdrptr, rdr$RAB+RAB$W_RSZ
-            blss    15$                    ; branch if not end of buffer
+            blss    15$                 ; branch if not end of buffer
             $GET    rdr$RAB
             bsbw    error
             clrw    rdrptr
@@ -1325,18 +1441,18 @@ outchar:
 BLOCKWRITE:
             movzbl   reg_D, r2            ; Trk no
             movzbl   reg_E, r3            ; sec no
-            mull2    #REC128_TRK, r2        ; trks * sec/trk
+            mull2    #REC128_TRK, r2      ; trks * sec/trk
             addl3    r2, r3, rec_no
-            movzwl   reg_BC, r1            ; get num bytes to write
-            divl3    #128, r1, r2        ; r2 = num full sectors
+            movzwl   reg_BC, r1           ; get num bytes to write
+            divl3    #128, r1, r2         ; r2 = num full sectors
             mull3    #128, r2, r3
-            subl3    r3, r1, r4            ; remainder in r4
+            subl3    r3, r1, r4           ; remainder in r4
             movzwl   reg_HL, r5
             
     10$:    addl3    r5, r11, r8
-            $RAB_STORE  rab=drive_A$RAB     ,-
-                        RBF=(r8)            ,-
-                        UBF=(r8)        ; set buff address
+            $RAB_STORE  rab=drive_A$RAB   ,-
+                        RBF=(r8)          ,-
+                        UBF=(r8)          ; set buff address
                         
             $FIND   drive_A$RAB
             bsbw    error
@@ -1344,18 +1460,18 @@ BLOCKWRITE:
             bsbw    error
             addw2   #128, r5
             incl    rec_no
-            sobgtr  r2, 10$                ; loop for number of ull sectors
+            sobgtr  r2, 10$               ; loop for number of ull sectors
             tstl    r4
             beql    20$
-            $RAB_STORE  rab=drive_A$RAB       ,-
-                        RBF=drivea_rec        ,-
+            $RAB_STORE  rab=drive_A$RAB   ,-
+                        RBF=drivea_rec    ,-
                         UBF=drivea_rec    ; set buff address
                         
             movc5   r4, (r5)[r11], #^x1a, #128, drivea_rec
             $FIND   drive_A$RAB
             bsbw    error
     20$:    
-            bisb2    #^x40, reg_F        ; set Z true
+            bisb2    #^x40, reg_F         ; set Z true
             clrb    reg_A
             brw     op_RET
             
@@ -1363,19 +1479,19 @@ BLOCKWRITE:
 OFFLOAD:    ; read BC bytes from TRK D SEC E to (HL)
             movzbl   reg_D, r2            ; Trk no
             movzbl   reg_E, r3            ; sec no
-            mull2    #REC128_TRK, r2        ; trks * sec/trk
+            mull2    #REC128_TRK, r2      ; trks * sec/trk
             addl3    r2, r3, rec_no
-            movzwl   reg_BC, r1            ; get num bytes to write
-            divl3    #128, r1, r2        ; r2 = num full sectors
+            movzwl   reg_BC, r1           ; get num bytes to write
+            divl3    #128, r1, r2         ; r2 = num full sectors
             mull3    #128, r2, r3
-            subl3    r3, r1, r4            ; remainder
+            subl3    r3, r1, r4           ; remainder
             movzwl   reg_HL, r5
             
     10$:
             addl3   r5, r11, r8
-            $RAB_STORE  rab=drive_A$RAB ,-
-                        RBF=(r8)        ,-
-                        UBF=(r8)        ; set buff address
+            $RAB_STORE  rab=drive_A$RAB   ,-
+                        RBF=(r8)          ,-
+                        UBF=(r8)          ; set buff address
             
             $FIND   drive_A$RAB
             bsbw    error
@@ -1383,7 +1499,7 @@ OFFLOAD:    ; read BC bytes from TRK D SEC E to (HL)
             bsbw    error
             addw2   #128, r5
             incl    rec_no
-            sobgtr  r2, 10$                ; loop for number of full sectors
+            sobgtr  r2, 10$               ; loop for number of full sectors
             
             tstl    r4
             beql    20$
@@ -1396,27 +1512,27 @@ OFFLOAD:    ; read BC bytes from TRK D SEC E to (HL)
             bsbw    error
             movc3   r4, drivea_rec, (r5)[r11]
     20$:
-            bisb2   #^x40, reg_F        ; set Z true
+            bisb2   #^x40, reg_F          ; set Z true
             clrb    reg_A
             brw     op_RET
 
 opED_01:
             caseb    r3, #0, #7
-    10$:        .word    opED_01_000-10$    ; IN    r, (C) & tstport(C)
-                .word    opED_01_001-10$    ; OUT    r, (C)
-                .word    opED_01_010-10$    ; SBC    ADC 16bit HL, rr
-                .word    opED_01_011-10$    ; LD    (pq), rr LD rr, (pq)
-                .word    opED_01_100-10$    ; NEG reg_A
-                .word    opED_01_101-10$    ; RETN RETI
-                .word    opED_01_110-10$    ; IM0 IM1 IM2
-                .word    opED_01_111-10$    ; LD IorR , A LD a, IorR RRD A RLDA
-                
-opED_01_000:                            ; IN r, (C)
+    10$:        .word    opED_01_xxx_000-10$  ;0 IN    r, (C) & tstport(C)
+                .word    opED_01_xxx_001-10$  ;1 OUT    r, (C)
+                .word    opED_01_xxx_010-10$  ;2 SBC    ADC 16bit HL, rr
+                .word    opED_01_xxx_011-10$  ;3 LD    (pq), rr LD rr, (pq)
+                .word    opED_01_xxx_100-10$  ;4 NEG reg_A
+                .word    opED_01_xxx_101-10$  ;5 RETN RETI
+                .word    opED_01_xxx_110-10$  ;6 IM0 IM1 IM2
+                .word    opED_01_xxx_111-10$  ;7 LD IorR , A LD a, IorR RRD A RLDA
+               
+opED_01_xxx_000:                          ; IN r, (C)
             extzv   #4, #2, r0, r3        ; get register
             cmpb    r3, #3                ; is it tst only
             bneq    5$
-            bbs     #3, r0, 10$            ; branch if reg_A
-            movab   TEMP, r2            ; store result to be lost
+            bbs     #3, r0, 10$           ; branch if reg_A
+            movab   TEMP, r2              ; store result to be lost
             brb     20$
     5$:     movl    ptr_BC[r3], r2
             bbs     #3, r0, 20$
@@ -1424,410 +1540,563 @@ opED_01_000:                            ; IN r, (C)
     10$:    movl    ptr_AF, r2
     15$:    incl    r2
     20$:
-            clrb    (r2)                ; return 0
-            bicb2   #^xD6, reg_F        ; clear S,Z,H,P,N
+            clrb    (r2)                  ; return 0
+            bicb2   #^xD6, reg_F          ; clear S,Z,H,P,N
             brw     fetch
             
-opED_01_001:                            ; OUT (C), r
-            extzv   #4, #2, r0, r3      ; get register
-            cmpb    r3, #3              ; is it tst only
+opED_01_xxx_001:                          ; OUT (C), r
+            extzv   #4, #2, r0, r3        ; get register
+            cmpb    r3, #3                ; is it tst only
             bneq    5$
-            bbs     #3, r0, 10$         ; branch if reg_A
-            movab   TEMP, r2            ; store result to be lost
+            bbs     #3, r0, 10$           ; branch if reg_A
+            movab   TEMP, r2              ; store result to be lost
             brb     20$
     5$:     movl    ptr_BC[r3], r2
             bbs     #3, r0, 20$
             brb     15$
     10$:    movl    ptr_AF, r2
-    15$:    incl    r2                  ; select lower reg of pair
+    15$:    incl    r2                    ; select lower reg of pair
     20$:
             brw     fetch
             
-opED_01_010:                            ; SBC HL, rr  ADC HL, rr
+opED_01_xxx_010:                              ; SBC HL, rr  ADC HL, rr
 ;NOTE: Half carry/borrow bit 11. I have not supported setting H flag for this event. TODO: 2013 WTFnot
+; H is set if borrow from bit 12; otherwise, it is reset.
 
             extzv   #4, #2, r0, r2
             movl    ptr_BC[r2], r2
             bbs     #3, r0, op_ADCHL
 op_SBCHL:
             sbwc    (r2), @ptr_IDX
-            brb        opED_Csetflags
+            brb     opED_Csetflags
 op_ADCHL:
             adwc    (r2), @ptr_IDX
 
 opED_Csetflags:
-            movpsl    r2
-            bicb2    #^xD7, reg_F        ; clear S,Z,H,V,N,C
+            movpsl  r2
+            bicb2   #^xD7, reg_F         ; clear S,Z,H,V,N,C
             blbc    r2, 10$
-            bisb2    #^x01, reg_F        ; set C flag
-    10$:    bbc        #1, r2, 20$
-            bisb2    #^x04, reg_F        ; set V flag
-    20$:    bbc        #3, r2, 30$
-            bisb2    #^x40, reg_F        ; set Z flag
-    30$:    bbc        #3, r2, 40$
-            bisb2    #^x80, reg_F        ; set S flag
-    40$:    brw        fetch
+            bisb2   #^x01, reg_F         ; set C flag
+    10$:    bbc     #1, r2, 20$
+            bisb2   #^x04, reg_F         ; set V flag
+    20$:    bbc     #3, r2, 30$
+            bisb2   #^x40, reg_F         ; set Z flag
+    30$:    bbc     #3, r2, 40$
+            bisb2   #^x80, reg_F         ; set S flag
+    40$:    brw     fetch
     
     
-opED_01_011:                            ; LD (pq), rr  LD rr, (pq)
-            movb    (r10)[r11], TEMP    ; fetch pq
+opED_01_xxx_011:                         ; LD (pq), rr  LD rr, (pq)
+            movb    (r10)[r11], TEMP     ; fetch pq
             incw    r10
             movb    (r10)[r11], TEMP+1
             incw    r10
-            extzv    #4, #2, r0, r2        ; get reg #
-            movl    ptr_BC[r2], r2        ; get address of reg in r2
-            movw    TEMP, r1
-            addl3    r11, r1, r3            ; make vax relative
-            bbs        #3, r0, opLDrrpq
+            extzv   #4, #2, r0, r2       ; get reg #
+            movl    ptr_BC[r2], r2       ; get address of reg in r2
+            movw    TEMP,  r1
+            bbs     #3, r0, opLDrrpq
 opLDpqrr:
-            movb    (r2)+, (r3)
+            movb    (r2)+, (r1)[r11]     ; reg to memory
             incw    r3
-            ; TODO: consider that (r2)+ should be an incw?
-            
-            movb    (r3), (r2)
-            brw        fetch
+            movb    (r2), (r1)[r11]
+            brw     fetch
 opLDrrpq:
-            movb    (r3), (r2)+
+            movb    (r1)[r11], (r2)+     ; memory to reg
             incw    r3
-            movb    (r3), (r2)
-            brw        fetch
+            movb    (r1)[r11], (r2)
+            brw     fetch
             
-opED_01_100:                            ; NEG A
+opED_01_xxx_100:                         ; NEG A
             cmpb    r0, #^x44
             bneq    10$
-            bicb2    #^xD5, reg_F        ; clear S,Z,H,V,C
-            bisb2    #^x02, reg_F        ; set N flag
-            extzv    #0, #4, reg_A, r2
-            mnegb    r2, r2
+            bicb2   #^xD5, reg_F         ; clear S,Z,H,V,C
+            bisb2   #^x02, reg_F         ; set N flag
+            extzv   #0, #4, reg_A, r2
+            mnegb   r2, r2
             cmpb    r2, #^x0f
-            beql    10$                    ; branch if no H
-            bisb2    #^x10, reg_F        ; set H flag
-    10$:    mnegb    reg_A, reg_A
-            movpsl    r2
+            beql    10$                  ; branch if no H
+            bisb2   #^x10, reg_F         ; set H flag
+    10$:    mnegb   reg_A, reg_A
+            movpsl  r2
             blbc    r2, 20$
-            bisb2    #^x01, reg_F        ; set C flag
-    20$:    bbc        #1, r2, 30$
+            bisb2   #^x01, reg_F        ; set C flag
+    20$:    bbc     #1, r2, 30$
             bisb2   #^x04, reg_F        ; set V flag
-    30$:    bbc        #2, r2, 40$
-            bisb2    #^x40, reg_F        ; set Z flag
-    40$:    bbc        #3, r2, 50$
-            bisb2    #^x80, reg_F        ; set S flag
-    50$:    brw        fetch
+    30$:    bbc     #2, r2, 40$
+            bisb2   #^x40, reg_F        ; set Z flag
+    40$:    bbc     #3, r2, 50$
+            bisb2   #^x80, reg_F        ; set S flag
+    50$:    brw     fetch
     
-opED_01_101:
+opED_01_xxx_101:
             cmpb    r0, #^x45
-            beql    10$                    ; RETN
+            beql    10$                 ; RETN
             cmpb    r0, #^x4D
-            beql    10$                    ; RETI
-            brw        fetch                ; NOP all else
-    10$:    brw        op_RET
+            beql    10$                 ; RETI
+            brw     unknown_op          ; NOP all else
+    10$:    brw     op_RET
 
-opED_01_110:                            ; IM0, IM1, IM2
-            brw        fetch                ; NOP
+opED_01_xxx_110:                            ; IM0, IM1, IM2
+            extzv   #3, #3, r0, r3
+            caseb   r3, #0, #7
+    10$:         .word opED_01_000_110-10$ ;46 IM 0
+                 .word opED_01_001_110-10$ ;4E unknown_op
+                 .word opED_01_010_110-10$ ;56 IM 1
+                 .word opED_01_011_110-10$ ;5E IM 2
+                 .word opED_01_100_110-10$ ;66 unknown_op
+                 .word opED_01_101_110-10$ ;6E unknown_op
+                 .word opED_01_110_110-10$ ;76 unknown_op
+                 .word opED_01_111_110-10$ ;7E unknown_op
+opED_01_001_110: ; 4E
+opED_01_100_110: ; 66
+opED_01_101_110: ; 6E
+opED_01_110_110: ; 76
+opED_01_111_110: ; 77
+            brw      unknown_op
+
+opED_01_000_110: ;46 IM 0
+            brw      fetch
+opED_01_010_110: ;56 IM 1
+            brw      fetch
+opED_01_011_110: ;5E IM 2
+            brw      fetch
             
-opED_01_111:
+opED_01_xxx_111:
             extzv    #3, #3, r0, r2
             caseb    r2, #0, #5
-    10$:        .word opED_01_111_000-10$    ; LD I,A
-                .word opED_01_111_001-10$    ; LD R,A
-                .word opED_01_111_010-10$    ; LD A,I
-                .word opED_01_111_011-10$    ; LD A,R
-                .word opED_01_111_100-10$    ; RRD A
-                .word opED_01_111_101-10$    ; RLD A
-            brw    fetch                     ; NOP 110 & 111
+    10$:        .word opED_01_000_111-10$    ; LD I,A
+                .word opED_01_001_111-10$    ; LD R,A
+                .word opED_01_010_111-10$    ; LD A,I
+                .word opED_01_011_111-10$    ; LD A,R
+                .word opED_01_100_111-10$    ; RRD A
+                .word opED_01_101_111-10$    ; RLD A
+            brw      unknown_op              ; 110 & 111
 
-opED_01_111_000:                             ; LD I,A
-            movb    reg_A, reg_I
-            brw     fetch
+opED_01_000_111:                        ; LD I,A
+            movb     reg_A, reg_I
+            brw      fetch
             
-opED_01_111_001:                             ; LD R, A
-            movb    reg_A, reg_R
-            brw     fetch
+opED_01_001_111:                        ; LD R, A
+            movb     reg_A, reg_R
+            brw      fetch
         
-opED_01_111_010:                             ; LD A, I
+opED_01_010_111:                        ; LD A, I
             movb     reg_I, reg_A
-    ISET:   bicb2    #^xD6, reg_F            ; clear S,Z,H,V,N
+    ISET:   bicb2    #^xD6, reg_F       ; clear S,Z,H,V,N
             tstb     reg_A
             beql     10$
-            bisb2    #^x40, reg_F            ; set Z flag
+            bisb2    #^x40, reg_F       ; set Z flag
     10$:    bbc      #6, reg_A, 20$
-            bisb2    #^x80, reg_F            ; set S flag
+            bisb2    #^x80, reg_F       ; set S flag
     20$:    brw      fetch
     
-opED_01_111_011:                             ; LD A, R
-            movb    reg_R, reg_A
-            brb     ISET
+opED_01_011_111:                        ; LD A, R
+            movb     reg_R, reg_A
+            brb      ISET
             
-opED_01_111_100:                             ; RRD A
-            bicb2    #^xD6, reg_F            ; clear S,Z,H,P,N
+opED_01_100_111:                        ; RRD A
+            bicb2    #^xD6, reg_F       ; clear S,Z,H,P,N
             movzwl   reg_HL, r1
-            addl3    r1, r11, r8             ; make vax relative
-            extzv    #0, #4, reg_A, r2       ; Lnibble A
-            extzv    #0, #4, (r8), r3        ; Lnibble (HL)
-            extzv    #4, #4, (r8), r4        ; Hnibble (HL)
+            addl3    r1, r11, r8        ; make vax relative
+            extzv    #0, #4, reg_A, r2  ; Lnibble A
+            extzv    #0, #4, (r8), r3   ; Lnibble (HL)
+            extzv    #4, #4, (r8), r4   ; Hnibble (HL)
             clrb     (r8)
-            bicb2    #^x0F, reg_A            ; clear Lnibble A
+            bicb2    #^x0F, reg_A       ; clear Lnibble A
 ;1
-            bisb2    r3, reg_A                ; Lnibble (HL) -> Lnibble A
-            bisb2    r4, (r8)                ; Hbibble (HL) -> Lnibble (HL)
-            ashl    #4, r2, r2                ; Lnibble  A  shifted left 4 bits
-            bisb2    r2, (r8)                ; Lnibble  A -> Hnibble (HL)
+            bisb2    r3, reg_A          ; Lnibble (HL) -> Lnibble A
+            bisb2    r4, (r8)           ; Hbibble (HL) -> Lnibble (HL)
+            ashl     #4, r2, r2         ; Lnibble  A  shifted left 4 bits
+            bisb2    r2, (r8)           ; Lnibble  A -> Hnibble (HL)
 ;4
             tstb    reg_A
-            movpsl    r2
+            movpsl  r2
             bneq    10$
-            bisb2    #^x40, reg_F            ; set Z flag
-    10$:    bbc        #3, r2, 20$
-            bisb2    #^x80, reg_F            ; set S flag
-    20$:    movzbl    reg_A, r4                ; P flag
+            bisb2   #^x40, reg_F        ; set Z flag
+    10$:    bbc     #3, r2, 20$
+            bisb2   #^x80, reg_F        ; set S flag
+    20$:    movzbl  reg_A, r4           ; P flag
             clrl    r3
             movl    #7, r2
-    40$:    bbc        r2, r4, 50$
-            mcoml    r4, r4                    ; toggle r4 on/off
-    50$:    sobgeq    r2, 40$                    ; loop for 8 bits
+    40$:    bbc     r2, r4, 50$
+            mcoml   r4, r4              ; toggle r4 on/off
+    50$:    sobgeq  r2, 40$             ; loop for 8 bits
             tstl    r4
             beql    60$
-            bisb2    #^x04, reg_F            ; set P flag
-    60$:    brw        fetch
+            bisb2   #^x04, reg_F        ; set P flag
+    60$:    brw     fetch
     
-opED_01_111_101:                            ; RLD A
-            bicb2    #^xD6, reg_F            ; clear S,Z,H,P,N
-            movzwl    reg_HL, r1
-            addl3    r1, r11, r8                ; make vax relative
-            extzv    #0, #4, reg_A, r2        ; Lnibble A
-            extzv    #0, #4,  (r8), r3        ; Lnibble (HL)
-            extzv    #4, #4,  (r8), r4        ; Hnibble (HL)
+opED_01_101_111:                        ; RLD A
+            bicb2   #^xD6, reg_F        ; clear S,Z,H,P,N
+            movzwl  reg_HL, r1
+            addl3   r1, r11, r8         ; make vax relative
+            extzv   #0, #4, reg_A, r2   ; Lnibble A
+            extzv   #0, #4,  (r8), r3   ; Lnibble (HL)
+            extzv   #4, #4,  (r8), r4   ; Hnibble (HL)
             clrb    (r8)
-            bicb2    #^x0F, reg_A            ; clear Lnibble A
+            bicb2   #^x0F, reg_A        ; clear Lnibble A
 ;1
-            bisb    r4, reg_A                ; Hnibble (HL) -> Lnibble A
-            ashl    #4, r3, r3                ; Lnibble (HL) left shift 4 bits
-            bisb3    r2, r3, (r8)            ; Lnibble A -> Lnibble (HL)
-                                            ; && Lnibble (HL) -> Hnibble (HL)
+            bisb    r4, reg_A           ; Hnibble (HL) -> Lnibble A
+            ashl    #4, r3, r3          ; Lnibble (HL) left shift 4 bits
+            bisb3   r2, r3, (r8)        ; Lnibble A -> Lnibble (HL)
+                                        ; && Lnibble (HL) -> Hnibble (HL)
 ;4
             tstb    reg_A
-            movpsl    r2
+            movpsl  r2
             bneq    10$
-            bisb2    #^x40, reg_F
-    10$:    bbc        #3, r2, 20$
-            bisb2    #^x80, reg_F            ; set S flag
-    20$:    movzbl    reg_A, r4                ; P flag
+            bisb2   #^x40, reg_F
+    10$:    bbc     #3, r2, 20$
+            bisb2   #^x80, reg_F        ; set S flag
+    20$:    movzbl  reg_A, r4           ; P flag
             clrl    r3
             movl    #7, r2
-    40$:    bbc        r2, r4, 50$
-            mcoml    r4, r4                    ; toggle r4 on/off
-    50$:    sobgeq    r2, 40$                    ; loop for 8 bits
+    40$:    bbc     r2, r4, 50$
+            mcoml   r4, r4              ; toggle r4 on/off
+    50$:    sobgeq  r2, 40$             ; loop for 8 bits
             tstl    r4
             beql    60$
-            bisb2    #^x04, reg_F            ; set P flag
-    60$:    brw        fetch
-            brw        fetch                    ; ?2013 odd
+            bisb2   #^x04, reg_F        ; set P flag
+    60$:    brw     fetch
+            brw     fetch               ; ?2013 odd
         
 ;===
-opED_10:                                    ; block ops
-            bisb2    #^x16, reg_F            ; clear H,V,N
-            movzwl   @ptr_IDX, r1            ; src
-            movzwl   reg_DE,   r4            ; dst
-            extzv    #3, #3, r0, r3
-            extzv    #0, #3, r0, r2
-            beql     op_LD
-            cmpb     r2, #01
-            bneq     opCP
-            brw      fetch                    ; all else is NOP
-opCP:       brw      op_CP
-op_LD:      caseb    r3, #4, #7
-    10$:        .word op_LD_100-10$            ; Blk Inc
-                .word op_LD_101-10$            ; Blk Dec
-                .word op_LD_110-10$            ; Blk Inc Repeat
-                .word op_LD_111-10$            ; Blk Dec Repeat
-            brw    fetch
+opED_10:                                ; block ops
+            bisb2   #^x16, reg_F        ; clear H,V,N
+            movzwl  @ptr_IDX, r1        ; src
+            movzwl  reg_DE,   r4        ; dst
+            extzv   #3, #3, r0, r3      ; middle 3bits __XXX___
+            extzv   #0, #3, r0, r2      ; lower  3bits _____XXX
+            caseb   r2, #0, #7
+      10$:      .word opED_10_xxx_000-10$ ; LDI,LDD,LDIR,LDDR
+                .word opED_10_xxx_001-10$ ; CPI,CPIR,CPD,CPDR
+                .word opED_10_xxx_010-10$ ; INI,INIR, IND,INDR
+                .word opED_10_xxx_011-10$ ; OUTI,OUTIR,OUTD,OUTDR
+                .word opED_10_xxx_100-10$ ; unknown_op
+                .word opED_10_xxx_101-10$ ; unknown_op
+                .word opED_10_xxx_110-10$ ; unknown_op
+                .word opED_10_xxx_111-10$ ; unknown_op
+            brw     unknown_op            ; never reached NOP
+
+opED_10_xxx_000:                        ; op_LD
+            caseb   r3, #4, #7
+    10$:        .word opED_10_100_000-10$     ; LDI  Blk Inc
+                .word opED_10_101_000-10$     ; LDD  Blk Dec
+                .word opED_10_110_000-10$     ; LDIR Blk  Inc Repeat
+                .word opED_10_111_000-10$     ; LDDR Blk Dec Repeat
+            brw     unknown_op          ; 000,001,010,011 unknown
 
 ; TODO: 2013 - 24years on this loops like rubish not indexing  the movb            
-op_LD_100:                                    ; LDI
+opED_10_100_000:                              ; LDI
             movb    (r1)[r11], (r2)[r11]
             incw    @ptr_IDX
             incw    reg_DE
             decw    reg_BC
             beql    10$
-            bisb2    #^x04, reg_F            ; set V flag
-    10$:    brw        fetch
+            bisb2   #^x04, reg_F        ; set V flag
+    10$:    brw     fetch
     
-op_LD_110:                                    ; LDIR
+opED_10_110_000:                              ; LDIR
     10$:    movb    (r1)[r11], (r2)[r11]
             incw    @ptr_IDX
             incw    reg_DE
             decw    reg_BC
-            beql    10$
-            bisb2    #^x04, reg_F            ; set V flag
-            brw        fetch
+            bneq    10$
+            bisb2   #^x04, reg_F        ; set V flag
+            brw     fetch
             
-op_LD_101:                                    ; LDD
+opED_10_101_000:                              ; LDD
             movb    (r1)[r11], (r2)[r11]
             decw    @ptr_IDX
             decw    reg_DE
             decw    reg_BC
-            beql    10$
-            bisb2    #^x04, reg_F            ; set V flag
-    10$:    brw        fetch
+            bneq    10$
+            bisb2   #^x04, reg_F        ; set V flag
+    10$:    brw     fetch
 
-op_LD_111:                                    ; LDDR
+opED_10_111_000:                              ; LDDR
     10$:    movb    (r1)[r11], (r2)[r11]
             decw    @ptr_IDX
             decw    reg_DE
             decw    reg_BC
-            beql    10$
-            bisb2    #^x04, reg_F            ; set V flag
-            brw        fetch
+            bneq    10$
+            bisb2   #^x04, reg_F        ; set V flag
+            brw     fetch
 
-op_CP:
-            bicb2    #^xD4, reg_F            ; clear S,Z,H,V
-            bisb2    #^x02, reg_F            ; set N flag
-            caseb    r3, #4, #7
-    10$:        .word    op_CP_100-10$        ; CPI
-                .word    op_CP_101-10$        ; CPD
-                .word    op_CP_110-10$        ; CPIR
-                .word    op_CP_111-10$        ; CPDR
-            brw        fetch
+opED_10_xxx_001:          ; CPI,CPD,CPIR,CPDR
+            bicb2   #^xD4, reg_F        ; clear S,Z,H,V
+            bisb2   #^x02, reg_F        ; set N flag
+            caseb   r3, #4, #7
+    10$:        .word    opED_10_100_001-10$  ; CPI
+                .word    opED_10_101_001-10$  ; CPD
+                .word    opED_10_110_001-10$  ; CPIR
+                .word    opED_10_111_001-10$  ; CPDR
+            brw      unknown_op
             
-op_CP_100:                                    ; CPI
-            movzwl    @ptr_IDX, r1
-            movzbl    (r1)[r11], r3
-            movb    reg_A, r7                ; temp save reg_A
-            bsbw    subr3toA                ; add neg(r3) to reg_A
-            movb    r7, reg_A                ; restore reg_A
+opED_10_100_001:                              ; CPI
+            movzwl  @ptr_IDX, r1
+            movzbl  (r1)[r11], r3
+            movb    reg_A, r7           ; temp save reg_A
+            bsbw    subr3toA            ; add neg(r3) to reg_A
+            movb    r7, reg_A           ; restore reg_A
             incw    @ptr_IDX
             decw    reg_BC
             bneq    10$
-            bisb2    #^x04, reg_F            ; set V flag
-    10$:    brw        fetch
+            bisb2   #^x04, reg_F        ; set V flag
+    10$:    brw     fetch
     
-op_CP_110:                                    ; CPIR
-    10$:    movzwl    @ptr_IDX, r1
-            movzbl    (r1)[r11], r3
-            movb    reg_A, r7                ; temo save reg_A
-            bsbw    subr3toA                ; sub r3 from reg_A
-            movb    r7, reg_A                ; restore reg_A
+opED_10_110_001:                              ; CPIR
+    10$:    movzwl  @ptr_IDX, r1
+            movzbl  (r1)[r11], r3
+            movb    reg_A, r7           ; temo save reg_A
+            bsbw    subr3toA            ; sub r3 from reg_A
+            movb    r7, reg_A           ; restore reg_A
             incw    @ptr_IDX
             decw    reg_BC
             bneq    10$
-            bisb2    #^x04, reg_F            ; set V flag
-            brw        fetch
+            bisb2   #^x04, reg_F        ; set V flag
+            brw     fetch
             
-op_CP_101:                                    ; CPD
-            movzwl    @ptr_IDX, r1
-            movzbl    (r1)[r11], r3
-            movb    reg_A, r7                ; temp save reg_A
-            bsbw    subr3toA                ; sub r3 from reg_A
-            movb    r7, reg_A                ; restore reg_A
+opED_10_101_001:                              ; CPD
+            movzwl  @ptr_IDX, r1
+            movzbl  (r1)[r11], r3
+            movb    reg_A, r7           ; temp save reg_A
+            bsbw    subr3toA            ; sub r3 from reg_A
+            movb    r7, reg_A           ; restore reg_A
             decw    @ptr_IDX
             decw    reg_BC
             bneq    10$
-            bisb2    #^x04, reg_F            ; set V flag
-    10$:             brw    fetch
+            bisb2   #^x04, reg_F        ; set V flag
+    10$:    brw     fetch
     
-op_CP_111:                                    ; CPDR
-    10$:    movzwl    @ptr_IDX, r1
-            movzbl    (r1)[r11], r3
-            movb    reg_A, r7                ; temp save reg_A
-            bsbw    subr3toA                ; sub r3 from reg_A
-            movb    r7, reg_A                ; restore reg_A
+opED_10_111_001:                              ; CPDR
+    10$:    movzwl  @ptr_IDX, r1
+            movzbl  (r1)[r11], r3
+            movb    reg_A, r7           ; temp save reg_A
+            bsbw    subr3toA            ; sub r3 from reg_A
+            movb    r7, reg_A           ; restore reg_A
             decw    @ptr_IDX
             decw    reg_BC
             bneq    10$
-            bisb2    #^x04, reg_F            ; set V flag
-            brw        fetch
+            bisb2   #^x04, reg_F        ; set V flag
+            brw     fetch
             
+opED_10_xxx_010:          ; INI,INIR, IND,INDR
+            caseb   r3, #4, #7
+    10$:        .word opED_10_100_010-10$     ;A2 INI
+                .word opED_10_101_010-10$     ;AA IND
+                .word opED_10_110_010-10$     ;B2 INIR
+                .word opED_01_111_010-10$     ;BA INDR
+            brw     unknown_op          ; 000,001,010,011 unknown
+
+opED_10_100_010:          ;A2 INI
+            brw       fetch
+opED_10_101_010:          ;AA IND
+            brw       fetch
+opED_10_110_010:          ;B2 INIR
+            brw       fetch
+opED_01_111_010:          ;BA INDR
+            brw       fetch
+
+opED_10_xxx_011:          ; OUTI,OUTIR,OUTD,OUTDR
+            caseb   r3, #4, #7
+    10$:        .word opED_10_100_011-10$     ; OUTI
+                .word opED_10_101_011-10$     ; OUTD
+                .word opED_10_110_011-10$     ; OUTIR
+                .word opED_01_111_011-10$     ; OUTDR
+            brw     unknown_op          ; 000,001,010,011 unknown
+
+opED_10_100_011:          ; OUTI
+            brw       fetch
+opED_10_101_011:          ; OUTD
+            brw       fetch
+opED_10_110_011:          ; OUTIR
+            brw       fetch
+opED_01_111_011:          ; OUTDR 
+            brw       fetch
+
+opED_10_xxx_100:
+opED_10_xxx_101:
+opED_10_xxx_110:
+opED_10_xxx_111:
+            brw     unknown_op
             
 ;-------------
-op11_110:                                    ; ADD a, n
-            movzbl    (r10)[r11], r3            ; fetch n
+op11_110:                               ; ADD a, n
+            movzbl  (r10)[r11], r3      ; fetch n
             incw    r10
-            brw        add_r3toA
+            brw     add_r3toA
             
-op11_111:                                    ; RST
-            movzwl    reg_SP, r1
-            movw    r10, TEMP_PC
+op11_111:                               ; RST
+            movzwl  reg_SP, r1
+            movw    r10, NEW_PC
             decw    r1
-            movb    TEMP_PC, (r1)[r11]
+            movb    NEW_PC, (r1)[r11]
             decw    r1
-            movb    TEMP_PC+1, (r1)[r11]
+            movb    NEW_PC+1, (r1)[r11]
             movw    r1, reg_SP
-            extzv    #3, #3, r0, r2
+            extzv   #3, #3, r0, r2
             ashl    #3, r2, r10
-            brw        fetch
+            brw     fetch
             
-SETUPIO:
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+z80config:
+            ; opcode srclen.rw, srcadr.ab, fill.rb, dstlen.rw, dstadr.ab
+            clrw    reg_AF
+            clrw    reg_BC
+            clrw    reg_DE
+            clrw    reg_HL
+            clrw    reg_AF2
+            clrw    reg_BC2
+            clrw    reg_DE2
+            clrw    reg_HL2
+            clrw    reg_SP
+            clrw    reg_IX
+            clrw    reg_IY
+            clrw    reg_IR
+            clrw    NEW_PC
+            clrw    TEMP
+
+	    movaq   dump_z80_reg_msg_dsc, r6
+            movaq   outbuf_dsc, r7
+	
+            movc5   DSC$W_LENGTH(r6), @DSC$A_POINTER(r6), #^A/ /, DSC$W_LENGTH(r7) , @DSC$A_POINTER(r7)
+
             movb    #^xFF, l^save_key(r11)    ; set l^save_key(r11) to -1
-            $ASSIGN_S    chan=tt_chan    ,-
+            $ASSIGN_S   chan=tt_chan    ,-
                         devnam=tt_nam
-            bsbw    error
+            bsbw     error
+
+            $ASSIGN_S   chan=emucons_chan ,-
+                        devnam=emucons_nam
+            bsbw     error
             
             $OPEN    drive_A$FAB
-            bsbw    error
+            bsbw     error
             $CONNECT drive_A$RAB
-            bsbw    error
+            bsbw     error
 ;
             $OPEN    boot$FAB
-            bsbw    error
+            bsbw     error
             $CONNECT boot$RAB
-            bsbw    error
+            bsbw     error
             movab    bootrec, r9
-    10$:
+
+    boot_read_loop:
+; r0  temp
+; r7  count of data bytes in bootrec
+; r8  index into bootrec
+; r9  bootrec pointer
+; r10 z80 memory index loaded from IntelHex record
+; r11 z80 memory base
+;
             clrl    r8
+	    clrb    CHKSUM		 
             $GET    boot$RAB
             cmpl    r0, #RMS$_SUC
-            bneq    end_load
+            bneq    Intelhex_eof
+;            pushaq  bootrec_dsc
+;            calls   #1, emuoutdsc
             cmpb    (r8)+[r9], #^A/:/
-            bneq    10$
+            bneq    boot_read_loop     ; skip records not begining with ':'
+
             bsbw    get_hex            ; get length byte
             movl    r0, r7
+
             bsbw    get_hex            ; get load address
-            movb    r0, TEMP+1
-            bsbw    get_hex
-            movb    r0, TEMP
-            movzwl    TEMP, r10
+	    ashl    #8, r0, r10        ; shift byte to upper
+
+            bsbw    get_hex            ; load the two hex bytes into the target z80 index
+	    bisb2   r0, r10            ; or the lower byte onto it
+
+	    bsbw    get_hex            ; get the type
+
+            caseb    r0, #0, #5
+    10$:        .word Intelhex_data-10$
+                .word Intelhex_eof-10$
+                .word IntelHex_Extended_SegAddr-10$
+                .word IntelHex_Start_SegAddr-10$
+                .word IntelHex_Extended_LinearAddr-10$
+                .word IntelHex_Start_LinearAddr-10$
+	    brw     boot_read_loop
+
+IntelHex_Extended_SegAddr:
+IntelHex_Start_SegAddr:
+IntelHex_Extended_LinearAddr:
+IntelHex_Start_LinearAddr:
+	    brw     boot_read_loop
+
+Intelhex_data:
     20$:
             bsbw    get_hex
-            movb    r0, (r10)[r11]
+            movl    r0, r3             ; save the byte
+	    addb2   r3, CHKSUM	       ; accumulate for chksum
+            movb    r3, (r10)[r11]
+            bsbw    print_loaded
             incw    r10
-            sobgtr    r7, 20$            ; loop for length
-            incl    r8                ; ignore checksum byte
-            incl    r8
-            brw        10$                ; get next record
+            sobgtr  r7, 20$            ; loop for length
+chkchksum:
+            bsbw    get_hex            ; get chksum byte in r0
+            ;mnegb   CHKSUM, CHKSUM
+            mcomb   CHKSUM, CHKSUM
+	    cmpb    r0, CHKSUM
+            bneq    chksum_error
+            brw     boot_read_loop     ; get next record
             
-end_load:
+Intelhex_eof:
             clrl    r10                ; PC start address
-            $CLOSE    boot$FAB
+            $CLOSE  boot$FAB
             rsb
-    
-get_hex:
-            ; get byte from ascii test at address W^bootrec(r8)
-            movzbl    (r8)+[r9], r0
-            subl2    #^A/0/, r0
-            cmpl    r0, #<^A/A/-^A/0/>  ; 2013-is this right?
-            blss    20$                    ; branch if 0 .. 9
-            bicb2    #^x20, r0            ; upcase
-            cmpl    r0, #<^A/F/-^A/0/>
-            bleq    10$                    ; branch if A .. F
-            clrl    r0                    ; error return 0
-            rsb
-    10$:    subl2    #7, r0
-    20$:
-            movzbl    (r8)+[r9], r1
-            subl2    #^A/0/, r1
-            cmpl    r1, #<^A/A/-^A/0/>
-            blss    40$                    ; branch if 0 .. 9
-            bicb2    #^x20, r1            ; upcase
-            cmpl    r1, #<^A/F/-^A/0/>
-            bleq    30$                    ; branch if A .. F
-            clrl    r0                    ; error retunr 0
-            rsb
-    30$:    subl2    #7, r1
-    40$:
-            mull2    #16, r0
-            addl2    r1, r0
-            rsb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+chksum_error:
+	    calls    #0, clear_outbuf
+            movzbl   r0, -(sp)
+            movzbl   CHKSUM, -(sp)
+            pushaq   outbuf_dsc        ; outbuf by desc
+            pushaw   outbuf_len
+            pushaq   chksum_error_dsc  ; ctrstr by desc
+            calls    #5, g^sys$fao
+            bsbw     error
             
+            pushaq   outbuf_dsc
+            calls    #1, emuoutdsc
+	    brw      boot_read_loop
+    
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+get_hex:    pushl   r1
+            ; get byte from ascii test at address r8 where bootrec is in r9
+	    ; returns with result in r0 and r8 pointing to next pair of hex
+	    ; return 0 on error silently ignoring invalid hex digits so get it right ;)
+            movzbl  (r8)+[r9], r0       ; get first nibble in r0
+            subl2   #^A/0/, r0		; adjust for '0' ascii 
+            cmpl    r0, #<^A/A/-^A/0/>  ; is it less than 'A'
+            blss    20$                 ; branch if 0 .. 9
+            bicb2   #^x20, r0           ; upcase 
+            cmpl    r0, #<^A/F/-^A/0/>  ; range check
+            bleq    10$                 ; branch if A .. F
+            clrl    r0                  ; error return 0
+            popl    r1
+            rsb
+    10$:    subl2   #7, r0		; adjust hex digit A-F
+    20$:
+            movzbl  (r8)+[r9], r1	; get next nibble
+            subl2   #^A/0/, r1         ; adjust for '0' ascii
+            cmpl    r1, #<^A/A/-^A/0/> ; is it less than 'A'
+            blss    40$                ; branch if 0 .. 9
+            bicb2   #^x20, r1          ; upcase
+            cmpl    r1, #<^A/F/-^A/0/> ; range check
+            bleq    30$                ; branch if A .. F
+            clrl    r0                 ; error return 0
+            popl    r1
+            rsb
+    30$:    subl2   #7, r1             ; adjust hex digit A-F
+    40$:
+            mull2   #16, r0
+            addl2   r1, r0
+            popl    r1
+            rsb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 const:
             cmpb    l^save_key(r11), #^xFF
             bneq    10$                    ; branch if char in buf
@@ -1855,69 +2124,221 @@ const:
     30$:
             brw     op_RET
             
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 conout:
-            $QIOW_S efn=#2                ,-
-                    func=#IO$_WRITEVBLK   ,-
-                    chan=TT_CHAN          ,-
-                    iosb=TT_IOSB          ,-
-                    p1=reg_C              ,-
-                    p2=#1
-            bsbw    error
+            pushl      r0
+            pushl      r1
+	    movb       reg_C, r0
+            bsbw       emuoutc
+            popl       r1
+            popl       r0
+         
+;            $QIOW_S efn=#2                ,-
+;                    func=#IO$_WRITEVBLK   ,-
+;                    chan=TT_CHAN          ,-
+;                    iosb=TT_IOSB          ,-
+;                    p1=reg_C              ,-
+;                    p2=#1
+;            bsbw    error
             brw     op_RET
             
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 error:
             blbs    r0, 10$
             $exit_s r0
     10$:
             rsb
-            
-halt_message:
-            $CREATE  out$FAB
-            bsbw     error
-            $CONNECT out$RAB
-            bsbw     error
-            
-            movzwl   reg_SP , -(sp)
-            movzwl   reg_IY , -(sp)
-            movzwl   reg_IX , -(sp)
-            movzwl   reg_HL2, -(sp)
-            movzwl   reg_HL , -(sp)
-            movzwl   reg_DE2, -(sp)
-            movzwl   reg_DE , -(sp)
-            movzwl   reg_BC2, -(sp)
-            movzwl   reg_BC , -(sp)
-            movzwl   reg_AF2, -(sp)
-            movzwl   reg_AF , -(sp)
 
-            subw3    #1, r10, r0       ; ZPC=R10
-            pushl    r0                ; OC
-            pushaq   outbuf            ; outbuf by desc
-            pushaw   out$RAB + RAB$W_RSZ;
-            pushaq   hlt_mess          ; ctrstr by desc
-            calls    #15, g^sys$fao
-            
-            $PUT    out$RAB
-            bsbw    error
-            $CLOSE  out$FAB
-            bsbw    error
-end_halt:                            ; for debug break
-            movc3   #halt_prompt_len, halt_prompt, outbuf
-            movl    #halt_prompt_len, out$RAB+RAB$W_USZ
-            $PUT    out$RAB
-            bsbw    error
-            bsbw    getc
-; TODO: finish this addition of prompting to continue during halt
-            brw    fetch
 
-getc:
-; TODO: finish this addition of prompting to continue during halt
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+clear_outbuf: .word ^M<r0,r1, r2, r3, r4, r5>
+            movaq    outbuf_dsc, r5
+	    movw     #OUT$S_RECORDSIZE, DSC$W_LENGTH(r5) ; set the initial length to max
+            movc5    #0, @DSC$A_POINTER(r5), #0, DSC$W_LENGTH(r5), @DSC$A_POINTER(r5) ; zerofill
+	    ret
+            
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+setflagsstr:
+           ; r0   flags
+           ; r1   addr of str
+            movl     #^A/____/,  (r1)
+            movw     #^A/__/  , 4(r1)
+            bbc      #0, r0, 10$
+            movb     #^A/C/, 5(r1)  ; Carry Set
+     10$:   bbc      #1, r0, 20$
+            movb     #^A/N/, 4(r1)  ; Negative Set
+     20$:   bbc      #2, r0, 30$
+            movb     #^A/V/, 3(r1)  ; P/V Parity/oVerflow set
+     30$:   bbc      #4, r0, 40$
+            movb     #^A/H/, 2(r1)  ; Half carry set
+     40$:   bbc      #6, r0, 50$
+            movb     #^A/Z/, 1(r1)  ; Zero flag set
+     50$:   bbc      #7, r0, 60$
+            movb     #^A/S/, (r1)  ; Sign flag set
+     60$:   rsb
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+disassembler:
+            pushl   r0          ; save opcode
+            pushl   CURIP
+            pushal  z80_memory
+            calls   #2, diz80
+            popl    r0          ; restore opcode
             rsb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+dump_z80_reg:
+            pushl    r0
+            pushl    r1
+            calls    #0, clear_outbuf
+            movzbl   reg_F  , r0
+            movab    flag1str, r1
+            bsbw     setflagsstr
+
+            movzbl   reg_F2  , r0
+            movab    flag2str, r1
+            bsbw     setflagsstr
+
+            movzwl   reg_IR    , -(sp)
+            movzwl   reg_SP    , -(sp)
+            movzwl   reg_IY    , -(sp)
+            movzwl   reg_IX    , -(sp)
+            movzwl   reg_HL2   , -(sp)
+            movzwl   reg_HL    , -(sp)
+            movzwl   reg_DE2   , -(sp)
+            movzwl   reg_DE    , -(sp)
+            movzwl   reg_BC2   , -(sp)
+            movzwl   reg_BC    , -(sp)
+            pushaq   flag2dsc
+            movzwl   reg_AF2   , -(sp)
+            pushaq   flag1dsc
+            movzwl   reg_AF    , -(sp)
+            ; we called before executing or increment PC thus
+            ; PC in r10 is the curent to dispatch address
+            movl     CURIPADDR , r0
+	    movzbl   (r0)      , -(sp)    ; current opcode
+            pushl    CURIP                ; PC
+            pushaq   outbuf_dsc           ; outbuf by desc
+            pushaw   outbuf_len;
+            pushaq   dump_z80_reg_msg_dsc ; ctrstr by desc
+            calls    #19, g^sys$fao
+            bsbw     error
             
+            pushaq   outbuf_dsc
+            calls    #1, G^LIB$PUT_OUTPUT
+            ;calls    #1, emuoutdsc
+            popl     r1
+            popl     r0
+	    rsb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+halt_message:
+	    bsbw    dump_z80_reg
+            pushaq  halt_prompt_dsc
+            calls   #1, emuoutdsc
+            $exit_s r0
+            bsbw    emugetc
+            clrb    runflag
+            brw     fetch
+
+unknown_op:
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+            movzbl   -1(r10)[r11], -(sp); opcode
+            pushaq   outbuf_dsc         ; outbuf by desc
+            pushaw   outbuf_len;
+            pushaq   err_unknown_op_dsc ; ctrstr by desc
+            calls    #4, g^sys$fao
+            bsbw     error
+            pushaq   outbuf_dsc
+            calls    #1, emuoutdsc
+            bsbw     error
+	    brw      fetch
+            
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+emuoutc:    ; write emulator console
+	    pushl   r1
+            movb    r0, emucons_iochar
+            $QIOW_S efn=#42              ,-
+                    func=#IO$_WRITEVBLK  ,-
+                    chan=emucons_chan    ,-
+                    iosb=emucons_iosb    ,-
+                    p1=emucons_iochar    ,-
+                    p2=#1
+ 	    bsbw    error
+            popl    r1
+            rsb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+emugetc:    ; read  emulator console
+            $QIO_S  efn=#43                         ,-
+                    func=#IO$_READVBLK!IO$M_NOECHO  ,-
+                    chan=emucons_chan               ,-
+                    iosb=emucons_iosb               ,-
+                    p1=emucons_iochar               ,-
+                    p2=#1                           ; request getch
+ 	    bsbw    error
+            movzbl  emucons_iochar, r0
+            rsb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+emuoutdsc:  .word ^M<r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11>
+            ; print str at descriptor 4(ap)
+	    movl     4(ap), r5
+            movl     DSC$A_POINTER(r5), r1
+            movzwl   DSC$W_LENGTH(r5), r2
+            bsbw     emuoutstr
+	    ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+emuoutstr:  ; r1 = addr of string
+            ; r2 = len
+   10$:     movb   (r1)+, r0
+	    bsbw   emuoutc
+	    sobgtr r2, 10$
+	    rsb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+emuout_newline:
+            pushl   r0
+	    movzwl  #^X0A, r0
+	    bsbw    emuoutc
+	    movzwl  #^X0D, r0
+	    bsbw    emuoutc
+            popl    r0
+            rsb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+print_loaded: ; display loaded byte from r3 to r10
+	    pushl r3
+            pushl r10
+
+	    calls    #0, clear_outbuf
+            movzbl   r3,  -(sp)
+            movzwl   r10, -(sp)
+            pushaq   outbuf_dsc        ; outbuf by desc
+            pushaw   outbuf_len;
+            pushaq   loaded_dsc ; ctrstr by desc
+            calls    #5, g^sys$fao
+            bsbw     error
+
+            pushaq   outbuf_dsc
+            calls    #1, emuoutdsc
+
+            popl     r10
+            popl     r3
+	    rsb
+
+            
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 close_IO:
-            $DASSGN_S    chan=tt_chan
-            $CLOSE        drive_A$FAB
-            bsbw    error
-            movl    s^#SS$_NORMAL, r0
+            $DASSGN_S  chan=tt_chan
+            $DASSGN_S  chan=emucons_chan
+            $CLOSE     drive_A$FAB
+            bsbw       error
+            movl       s^#SS$_NORMAL, r0
             ret        ; exit to VMS
             
             .end z80_start
