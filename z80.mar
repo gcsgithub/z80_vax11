@@ -4,8 +4,7 @@
 ; (c) Copyright 1989 Mark Garrett
 ;
 ;     You may use this program freely, You may not sell it. If you improve or change this program in
-; any way I'd appreciate that you send me your changes, and make proper comments in the source code indicating thee changes
-.
+; any way I'd appreciate that you send me your changes, and make proper comments in the source code indicating thee changes.
 ;
 ;    I MAKE NO REPRESENTATIONS ABOUT THE SUITABILITY OF
 ;    THIS SOURCE CODE FOR ANY PURPOSE. IT IS PROVIDED "AS IS" 
@@ -170,7 +169,8 @@ bootrec_dsc: .word  1024
 bootrec:    .blkb   1024
 drivea_rec: .blkb   128
 
-runflag:    .byte   0           ; run while 0
+runflag:    .long   0           ; run while 0
+brkflag:    .long   0           ; run while 0
 intflg:     .byte   ^xff        ; 0xff int enabled
 
 $EQU    OUT$S_RECORDSIZE    <80 * 25>
@@ -260,7 +260,6 @@ NEW_PC:     .BLKW    1
 TEMP:       .blkw    1
 
 CHKSUM:	    .byte    0
-EBREAK:     .BLKW    1
 
 LBREAK1:    .word    ^x0080    ; Break start of rom
 HBREAK1:    .word    ^x0200    ; Break up to the end of rom
@@ -283,10 +282,15 @@ Z80_START::    .word ^M<>
             bsbw    z80config
             clrw    reg_SP
             movaw   reg_HL, r9
-            ;movw    #^x0100, r10 ; for testing start at 0100h
+            movw    #^x0100, r10 ; for testing start at 0100h
+            ;movw    #^x02000, r10 ; for testing start at 2000h
             bisb2   #^x80, reg_R ; set the high bit 
 
 fetch:      
+            blbc    brkflag, exec0
+breakpoint: clrb    brkflag
+	    bsbw    dump_z80_reg
+exec0:
             movaw   reg_HL, ptr_idx
             addb3   reg_R, #1, r0 ; increment 7bits of R
             bicb2   #^x80, r0     ; clear high bit
@@ -297,10 +301,8 @@ fetch2:
             movzbl  (r10)[r11], r0
             movw    r10, CURIP
             movab   (r10)[r11], CURIPADDR
-            cmpw    r10, EBREAK
-            beql    break1
 
-            cmpw    r0, LBREAK1
+            cmpw    r10, LBREAK1
             blss    test2        ; branch if less that low break
             cmpw    r10, HBREAK1
             bgtr    test2        ; branch if greater than High Break
@@ -316,10 +318,10 @@ BREAK1:     nop                 ; set a break here
             brw     halt
 
 fetched:
-	    bsbw    dump_z80_reg
-            bsbw    disassembler
+	   ; bsbw    dump_z80_reg
+           bsbw    disassembler
+;
 fetch0:
-
             incw    r10         ; inc z80pc
 ;   
             extzv   #0, #3, r0, r2
@@ -709,12 +711,12 @@ op01:                                  ; LD r, r'
   ld_src:   ; r2 is the reg pair index 11,1=AF  11,0 indirect (hl) (ix+d) (iy+d)
             movaw   reg_BC[r2],  r4    ; src in r4, assume its reg src BC, DE, HL
             cmpb    r2, #3             ; is it A or (idx)
-            bneq    ld_src_reg         ; branch if that was correct use r4+bit3ofr0
+            bneq    ld_src_reg         ; branch if that was correct use r4 its b,c,d,e,h,l
             ; 11x so its either indirect else reg_A
             blbs    r0, ld_src_A       ; branch if reg A?
             ; else bits clear and we talking (hl), (IX+d) or (IY+d)
             movzwl  @ptr_IDX, r4       ; get contents of z80reg, which it is (HL) or (IX+d) or (IY+d)?
-            cmpl    r9, ptr_IDX        ; does ptr_IDX hold the address of HL which is in vax r9 register?
+            cmpl    r9, ptr_IDX        ; ?ptr_IDX == HL which is in vax r9 register?
             beql    10$                ; branch if HL
             cvtbl   (r10)[r11], r6     ; else fetch offset d signed extend the d val
             incw    r10                ; inc PC
@@ -724,7 +726,7 @@ op01:                                  ; LD r, r'
 
     ld_src_reg:
             ; r4 holds the pointer to the register pair
-	    bbs     #3, r0, ld_src_low
+	    blbs    r0, ld_src_low     ; 001=C, 011=E, 101=l
 	    incl    r4		       ; index to the high byte
     ld_src_low:
             ; r4 now points to the vax address of a z80 register
@@ -735,16 +737,16 @@ op01:                                  ; LD r, r'
 
 ; calc dst 1st in r5
   ld_dst:   ; r3 is the reg pair index 11,1=AF  11,0 indirect (hl) (ix+d) (iy+d)
-            movaw   reg_BC[r3],  r5    ; dst in r5, assume its reg dst BC, DE, HL
+            movaw  reg_BC[r3], r5      ; addr z80reg, which it is (HL) or (IX+d) or (IY+d)?
             cmpb    r3, #3             ; is it A or (idx)
-            bneq    ld_dst_reg         ; branch if that was correct use r5+bit3ofr0
+            bneq    ld_dst_reg         ; branch if that was correct its b,c,d,e,h,l
             ; 11x so its either indirect else reg_A
             bbs     #3, r0, ld_dst_A   ; branch if reg A?
             ; else bits clear and we talking (hl), (IX+d) or (IY+d)
-            movzwl  @ptr_IDX, r5       ; get contents of z80reg, which it is (HL) or (IX+d) or (IY+d)?
-            cmpl    r9, ptr_IDX        ; does ptr_IDX hold the address of HL which is in vax r9 register?
+            movzwl  @ptr_IDX, r5       ; get 16bit contents of HL,IX or OY
+            cmpl    r9, ptr_IDX        ; ?ptr_IDX == HL which is in vax r9 register?
             beql    10$                ; branch if HL
-            cvtbl  (r10)[r11], r6      ; signed extend fetch offset d
+            cvtbl   (r10)[r11], r6      ; signed extend fetch offset d
             incw    r10                ; inc PC
             addl2   r6, r5             ; add the offset to the index (IX+d) (IY+d)
        10$: addl2   r11, r5            ; r5 now points to a vax address
@@ -757,7 +759,7 @@ op01:                                  ; LD r, r'
     ld_dst_low:
             ; r5 now points to the vax address of a z80 register
             brb     ld_doit
-    ld_dst_A:
+   ld_dst_A:
 	    movaw   reg_A,  r5         ; src in r4 is AF or Index or Halt
 	    ;brb     ld_doit           ; just fall through
 
@@ -1251,8 +1253,8 @@ op_CALL:    movb    (r10)[r11], NEW_PC   ; fetch the address to call into NEW_PC
 ; 2016feb not so simple next opcode can be different
 ;DDCBddCr  SET 0,(IX+dd),r  r={B,C,D,E,H,L,A}
 ;So for example with the last instruction, the value of (IX+10h) with bit 0 set is also stored in register A.
-;The DDCB BIT instructions do not store any value; they merely test a bit. Thatbis why the undocumented DDCB BIT instructio
-ns are no different from the official ones:
+;The DDCB BIT instructions do not store any value; they merely test a bit. Thatbis why the undocumented DDCB BIT instructions are no different from the 
+official ones:
 ;3.6
 ;
 op_FD:                                 ; use IY
@@ -1266,6 +1268,15 @@ op_DD:                                 ; use IX
 op_ED:                                 ; ED group
             movzbl  (r10)[r11], r0     ; fetch op code
             incw    r10
+            cmpb    r0, #^xee	       ; bsbw    dump_z80_reg
+            bneq    4$
+            bsbw    dump_z80_reg
+            brw     fetch
+     4$:    cmpb    r0, #^xed	       ; brk
+	    bneq    5$
+	    incl    brkflag	       ; set low bit
+            brw     fetch
+     5$:
             extzv   #0, #3, r0, r3
             extzv   #6, #2, r0, r2
             caseb   r2, #0, #3
@@ -1787,7 +1798,7 @@ opED_10_xxx_000:                        ; op_LD
 
 ; TODO: 2013 - 24years on this loops like rubish not indexing  the movb            
 opED_10_100_000:                              ; LDI
-            movb    (r1)[r11], (r2)[r11]
+            movb    (r1)[r11], (r4)[r11]
             incw    @ptr_IDX
             incw    reg_DE
             decw    reg_BC
@@ -1796,7 +1807,7 @@ opED_10_100_000:                              ; LDI
     10$:    brw     fetch
     
 opED_10_110_000:                              ; LDIR
-    10$:    movb    (r1)[r11], (r2)[r11]
+    10$:    movb    (r1)[r11], (r4)[r11]
             incw    @ptr_IDX
             incw    reg_DE
             decw    reg_BC
@@ -1805,7 +1816,7 @@ opED_10_110_000:                              ; LDIR
             brw     fetch
             
 opED_10_101_000:                              ; LDD
-            movb    (r1)[r11], (r2)[r11]
+            movb    (r1)[r11], (r4)[r11]
             decw    @ptr_IDX
             decw    reg_DE
             decw    reg_BC
@@ -1814,7 +1825,7 @@ opED_10_101_000:                              ; LDD
     10$:    brw     fetch
 
 opED_10_111_000:                              ; LDDR
-    10$:    movb    (r1)[r11], (r2)[r11]
+    10$:    movb    (r1)[r11], (r4)[r11]
             decw    @ptr_IDX
             decw    reg_DE
             decw    reg_BC
