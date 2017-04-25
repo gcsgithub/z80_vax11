@@ -207,10 +207,10 @@ iochar:     .blkb    1
 
             .psect z80$registers    noexe,rd,wrt,pic,long
 ptr_AF:     .address    reg_AF
-ptr_BC:     .address    reg_BC
-ptr_DE:     .address    reg_DE
-ptr_IDX:    .address    reg_HL
-ptr_SP:     .address    reg_SP
+ptr_BC:     .address    reg_BC ; 00
+ptr_DE:     .address    reg_DE ; 01
+ptr_IDX:    .address    reg_HL ; 10
+ptr_SP:     .address    reg_SP ; 11
 
 
 reg_AF:
@@ -259,6 +259,8 @@ CURIP:      .word    0
 NEW_PC:     .BLKW    1
 TEMP:       .blkw    1
 
+DFLG:	    .long    0
+
 CHKSUM:	    .byte    0
 
 LBREAK1:    .word    ^x0080    ; Break start of rom
@@ -280,16 +282,19 @@ z80_memory:  .blkb ^xffff
 Z80_START::    .word ^M<>
             movab   z80_memory, r11
             bsbw    z80config
-            clrw    reg_SP
+            ;clrw    reg_SP
+	    movw    #^x8000, reg_SP
             movaw   reg_HL, r9
             movw    #^x0100, r10 ; for testing start at 0100h
             ;movw    #^x02000, r10 ; for testing start at 2000h
             bisb2   #^x80, reg_R ; set the high bit 
 
 fetch:      
+            calls   #0, ISDBG
+            movl    r0, DFLG
             blbc    brkflag, exec0
 breakpoint: clrb    brkflag
-	    bsbw    dump_z80_reg
+            bsbw    dump_z80_reg
 exec0:
             movaw   reg_HL, ptr_idx
             addb3   reg_R, #1, r0 ; increment 7bits of R
@@ -318,8 +323,10 @@ BREAK1:     nop                 ; set a break here
             brw     halt
 
 fetched:
-	   ; bsbw    dump_z80_reg
-           bsbw    disassembler
+            blbc	   DFLG, 10$
+            bsbw    dump_z80_reg
+            bsbw    disassembler
+  10$:
 ;
 fetch0:
             incw    r10         ; inc z80pc
@@ -416,7 +423,8 @@ ADD_HL:     ; ADD HL, rr or ADD IX, rr or ADD IY, rr
     10$:    brw     fetch
 ;------------------------
 ;
-op00_010:   ; 00, 01 = LD (BC, DE), A / LD A, (BC, DE)
+op00_010:   ; 00 = LD    (BC, DE), A
+            ; 01 = LD A, (BC, DE)
             ; 10 = LD (nnnn), HL / LD HL, (nnnn)
             ; 11 = LD (nnnn), A  / LD A, (nnnn)
             ; need an address either register contents else nnnn  in r4
@@ -552,7 +560,7 @@ op00_101:                              ; DEC r
             bisb2   #^x40, reg_F       ; set Z flag
     22$:    bbc     #3, r3, 23$
             bisb2   #^x80, reg_F       ; set S flag
-    23$:    bicb2   #^xF0, r0          ; clar upper nibble
+    23$:    bicb2   #^xF0, r0          ; clear upper nibble
             decb    r0
             cmpb    r0, #^x0f
             bleq    24$                ; branch if no half carry
@@ -899,7 +907,7 @@ op10_101:                              ; XOR A, r
             xorb2  r3, reg_A
             brb    logsetflags
 op10_110:                              ; OR A, r
-            bicb2  #^D7, reg_F         ; clear S,Z,H,P,N,C
+            bicb2  #^xD7, reg_F         ; clear S,Z,H,P,N,C
             bisb2  r3, reg_A           ; or reg_A with r3
             brb    logsetflags
             
@@ -934,6 +942,7 @@ op11_000:                              ; RET ccc
     10$:    bbc     r2, reg_F, end_RET
     20$:
 op_RET:
+	    ;bsbw    dump_z80_reg
             movzwl  reg_SP, r2
             movb    (r2)[r11], NEW_PC
             incw    r2
@@ -941,6 +950,7 @@ op_RET:
             incw    r2
             movw    r2, reg_SP
             movzwl  NEW_PC, r10
+	    ;bsbw    dump_z80_reg
  end_RET:   brw     fetch
  
  op11_001:                             ; POP rr, RET, EXX, PCHL, SPHL
@@ -970,7 +980,7 @@ op_RET:
 op_SPHL:    movw    @ptr_IDX, reg_SP  ; HL->SP
             brw     fetch
             
-op_PCHL:    movw    @ptr_IDX, reg_SP  ; HL->PC
+op_PCHL:    movw    @ptr_IDX, r10  ; HL->PC
             brw     fetch
             
 op_EXX:     movl    reg_BC, r2        ; BC,DE ->r2
@@ -1253,8 +1263,7 @@ op_CALL:    movb    (r10)[r11], NEW_PC   ; fetch the address to call into NEW_PC
 ; 2016feb not so simple next opcode can be different
 ;DDCBddCr  SET 0,(IX+dd),r  r={B,C,D,E,H,L,A}
 ;So for example with the last instruction, the value of (IX+10h) with bit 0 set is also stored in register A.
-;The DDCB BIT instructions do not store any value; they merely test a bit. Thatbis why the undocumented DDCB BIT instructions are no different from the 
-official ones:
+;The DDCB BIT instructions do not store any value; they merely test a bit. Thatbis why the undocumented DDCB BIT instructions are no different from the official ones:
 ;3.6
 ;
 op_FD:                                 ; use IY
@@ -1268,40 +1277,589 @@ op_DD:                                 ; use IX
 op_ED:                                 ; ED group
             movzbl  (r10)[r11], r0     ; fetch op code
             incw    r10
+
             cmpb    r0, #^xee	       ; bsbw    dump_z80_reg
             bneq    4$
+	    blbc    DFLG, 1$
             bsbw    dump_z80_reg
+	    bsbw    disassembler
+     1$:
             brw     fetch
      4$:    cmpb    r0, #^xed	       ; brk
 	    bneq    5$
 	    incl    brkflag	       ; set low bit
             brw     fetch
      5$:
-            extzv   #0, #3, r0, r3
+            extzv   #0, #6, r0, r3
             extzv   #6, #2, r0, r2
-            caseb   r2, #0, #3
-    10$:          .word opED_00-10$    ; unknown_op's
-                  .word opED_01-10$   
-                  .word opED_10-10$   
-                  .word opED_11-10$    ; BIOS ops
-            brw     unknown_op         ; unreachable
+            caseb   r2, #0, #4
+    10$:          .word opED_00-10$     ; BIOS
+                  .word opED_01-10$     ;0 IN    r, (C) & tstport(C)
+                                        ;1 OUT    r, (C),SBC    ADC 16bit HL, rr
+                                        ;3 LD    (pq), rr LD rr, (pq)
+                                        ;4 NEG reg_A
+                                        ;5 RETN RETI
+                                        ;6 IM0 IM1 IM2
+                                        ;7 LD IorR , A LD a, IorR RRD A RLDA
+                  .word opED_10-10$     ; block ops
+                  .word opED_11-10$     ; BIOS ops
+            brw     unknown_op          ; unreachable
             
 opED_00:
-            brw     unknown_op          ; NOP
+	    caseb       r3, #0,#63
+10$:	.word bios_0_BOOT-10$         ; 00 BOOT (function 0)
+		.word bios_1_WBOOT-10$        ; 01 WBOOT (function 1)
+		.word bios_2_CONST-10$        ; 02 CONST (function 2)
+		.word bios_3_CONIN-10$        ; 03 CONIN (function 3)
+		.word bios_4_CONOUT-10$       ; 04 CONOUT (function 4)
+		.word bios_5_LIST-10$         ; 05 LIST (function 5)
+		.word bios_6_PUNCHAUXOUT-10$  ; 06 PUNCH / AUXOUT (function 6)
+		.word bios_7_READER-10$       ; 07 READER (function 7)
+		.word bios_8_HOME-10$         ; 08 HOME (function 8)
+		.word bios_9_SELDSK-10$       ; 09 SELDSK (function 9)
+		.word bios_10_SETTRK-10$      ; 0A SETTRK (function 10)
+		.word bios_11_SETSEC-10$      ; 0B SETSEC (function 11)
+		.word bios_12_SETDMA-10$      ; 0C SETDMA (function 12)
+		.word bios_13_READ-10$        ; 0D READ (function 13)
+		.word bios_14_WRITE-10$       ; 0E WRITE (function 14)
+		.word bios_15_LISTST-10$      ; 0F LISTST (function 15)
+		.word bios_16_SECTRAN-10$     ; 10 SECTRAN (function 16)
+		.word bios_17_CONOST-10$      ; 11 CONOST (function 17)
+		.word bios_18_AUXIST-10$      ; 12 AUXIST (function 18)
+		.word bios_19_AUXOST-10$      ; 13 AUXOST (function 19)
+		.word bios_20_DEVTBL-10$      ; 14 DEVTBL (function 20)
+		.word bios_21_DEVINI-10$      ; 15 DEVINI (function 21)
+		.word bios_22_DRVTBL-10$      ; 16 DRVTBL (function 22)
+		.word bios_23_MULTIO-10$      ; 17 MULTIO (function 23)
+		.word bios_24_FLUSH-10$       ; 18 FLUSH (function 24)
+		.word bios_25_MOVE-10$        ; 19 MOVE (function 25)
+		.word bios_26_TIME-10$        ; 1A TIME (function 26)
+		.word bios_27_SELMEM-10$      ; 1B SELMEM (function 27)
+		.word bios_28_SETBNK-10$      ; 1C SETBNK (function 28)
+		.word bios_29_XMOVE-10$       ; 1D XMOVE (function 29)
+		.word bios_30_USERF-10$       ; 1E USERF (function 30)
+		.word bios_31_RESERV1-10$     ; 1F RESERV1 (functions 31)
+		.word bios_32_RESERV2-10$     ; 20 RESERV2 (functions 32)
 
+        .word BDOS_9_C_WRITESTR-10$    ; 21 BDOS_9_C_WRITESTR  RESERV3 (functions 33)
+        .word bios_34_RESERV4-10$    ; 22 RESERV4 (functions 34)
+        .word bios_35_RESERV5-10$    ; 23 RESERV5 (functions 35)
+        .word bios_36_RESERV6-10$    ; 24 RESERV6 (functions 36)
+        .word bios_37_RESERV7-10$    ; 25 RESERV7 (functions 37)
+        .word bios_38_RESERV8-10$    ; 26 RESERV8 (functions 38)
+        .word bios_39_RESERV9-10$    ; 27 RESERV9 (functions 39)
+        .word bios_40_RESERV10-10$    ; 28 RESERV10 (functions 40)
+        .word bios_41_RESERV11-10$    ; 29 RESERV11 (functions 41)
+        .word bios_42_RESERV12-10$    ; 2A RESERV12 (functions 42)
+        .word bios_43_RESERV13-10$    ; 2B RESERV13 (functions 43)
+        .word bios_44_RESERV14-10$    ; 2C RESERV14 (functions 44)
+        .word bios_45_RESERV15-10$    ; 2D RESERV15 (functions 45)
+        .word bios_46_RESERV16-10$    ; 2E RESERV16 (functions 46)
+        .word bios_47_RESERV17-10$    ; 2F RESERV17 (functions 47)
+        .word bios_48_RESERV18-10$    ; 30 RESERV18 (functions 48)
+        .word bios_49_RESERV19-10$    ; 31 RESERV19 (functions 49)
+        .word bios_50_RESERV20-10$    ; 32 RESERV20 (functions 50)
+        .word bios_51_RESERV21-10$    ; 33 RESERV21 (functions 51)
+        .word bios_52_RESERV22-10$    ; 34 RESERV22 (functions 52)
+        .word bios_53_RESERV23-10$    ; 35 RESERV23 (functions 53)
+        .word bios_54_RESERV24-10$    ; 36 RESERV24 (functions 54)
+        .word bios_55_RESERV25-10$    ; 37 RESERV25 (functions 55)
+        .word bios_56_RESERV26-10$    ; 38 RESERV26 (functions 56)
+        .word bios_57_RESERV27-10$    ; 39 RESERV27 (functions 57)
+        .word bios_58_RESERV28-10$    ; 3A RESERV28 (functions 58)
+        .word bios_59_RESERV29-10$    ; 3B RESERV29 (functions 59)
+        .word bios_60_RESERV30-10$    ; 3C RESERV30 (functions 60)
+        .word bios_61_RESERV31-10$    ; 3D RESERV31 (functions 61)
+        .word bios_62_RESERV32-10$    ; 3E RESERV32 (functions 62)
+        .word bios_63_RESERV33-10$    ; 3F RESERV33 (functions 63)
+
+	brw	unknown_op
+
+bios_0_BOOT:
+;
+;BOOT (function 0)
+;
+; This function is completely implementation-dependent and
+; should never be called from user code.
+;
+		brw bios_ret
+
+bios_1_WBOOT:
+;
+;BOOT (function 1)
+; Reloads the command processor and (on some systems) the BDOS as well.
+; How it does this is implementation-dependent; it may use the reserved
+; tracks of a floppy disc or extra memory.
+;
+		brw bios_ret
+
+bios_2_CONST:
+;
+;CONST (function 2)
+;
+; Returns its status in A; 0 if no character is ready, 0FFh if one is.
+;
+;
+            cmpb    l^save_key(r11), #^xFF
+            bneq    10$                    ; branch if char in buf
+            ;tstb    qio_flag
+            ;bneq    5$
+            movb    #^xFF, l^save_key(r11)
+            ;movb    #^xFF, qio_flag
+            $QIO_S  efn=#1                            ,-
+                    func=#IO$_READVBLK!IO$M_NOECHO    ,-
+                    chan=TT_CHAN                      ,-
+                    iosb=TT_IOSB                      ,-
+                    p1=l^save_key(r11)                ,-
+                    p2=#1                             ; request getch
+            bsbw    error
+            
+    5$:     cmpb    l^save_key(r11), #^xFF    ; did we get a char?
+            beql    20$                       ; branch yes
+    10$:    movb    #^xFF, reg_A              ; tell them we got a char
+            bicb2   #^x40, reg_F              ; clear Z flag
+            ;clrb    qio_flag                  ; qio must  have completed
+            brb     30$
+            
+    20$:    clrb    reg_A                     ; tell them no char
+            bisb2   #^x40, reg_F              ; set Z flag
+    30$:
+
+		brw bios_ret
+
+bios_3_CONIN:
+;
+;CONIN (function 3)
+;
+;Wait until the keyboard is ready to provide a character, and return it in A.
+;
+	    bicb2   #^x04, reg_F		; clear P flag aka V
+	    cmpb    l^save_key(r11), #^xFF
+            bneq    10$ ; branch if char already in save_key
+	    ; otherwise get one now
+	    $QIOW_S  efn=#1                            ,-
+                    func=#IO$_READVBLK!IO$M_NOECHO    ,-
+                    chan=TT_CHAN                      ,-
+                    iosb=TT_IOSB                      ,-
+                    p1=reg_A                          ,-
+                    p2=#1                             ; request getch
+        bsbw    error
+	    movb    reg_A, l^save_key(r11)
+		
+   10$:	movb    l^save_key(r11), reg_A
+	    movb    #^xFF, l^save_key(r11)
+	    bisb2   #^x04, reg_F		; set P flag aka V
+		brw bios_ret
+
+bios_4_CONOUT:
+;
+;CONOUT (function 4)
+;
+; Write the character in C to the screen.
+;
+           $QIOW_S efn=#2                ,-
+                    func=#IO$_WRITEVBLK   ,-
+                    chan=TT_CHAN          ,-
+                    iosb=TT_IOSB          ,-
+                    p1=reg_C              ,-
+                    p2=#1
+            bsbw    error
+
+		brw bios_ret
+
+bios_5_LIST:
+;
+;LIST (function 5)
+;
+;Write the character in C to the printer. If the printer isn't ready,
+; wait until it is.
+;
+		brw bios_ret
+
+bios_6_PUNCHAUXOUT:
+;
+;PUNCH / AUXOUT (function 6)
+;
+;Write the character in C to the "paper tape punch" - or whatever the
+; current auxiliary device is. If the device isn't ready, wait until it is.
+;
+;This function is called PUNCH in CP/M 2.x, AUXOUT in CP/M 3.
+;
+		brw bios_ret
+
+bios_7_READER:
+;
+;READER (function 7)
+;
+;Read a character from the "paper tape reader" - or whatever the current auxiliary device is. If the device isn't ready, wait until it is. The character will be returned in A. If this device isn't implemented, return character 26 (^Z).
+;
+;This function is called READER in CP/M 2.x, AUXIN in CP/M 3.
+;
+		brw bios_ret
+
+bios_8_HOME:
+;
+;
+;HOME (function 8)
+;
+;Move the current drive to track 0.
+;
+		brw bios_ret
+
+bios_9_SELDSK:
+;
+;SELDSK (function 9)
+;
+;Select the disc drive in register C (0=A:, 1=B: ...). Called with E=0 or 0FFFFh.
+;
+;If bit 0 of E is 0, then the disc is logged in as if new; if the format has to be determined from the boot sector, for example, this will be done.
+;
+;If bit 0 if E is 1, then the disc has been logged in before. The disc is not accessed; the DPH address (or zero) is returned immediately.
+;
+;SELDSK returns the address of a Disc Parameter Header in HL. The exact format of a DPH varies between CP/M versions; note that under CP/M 3, the DPH is in memory bank 0 and probably not visible to programs. If the disc could not be selected it returns HL=0.
+;
+;
+		brw bios_ret
+
+bios_10_SETTRK:
+;
+;SETTRK (function 10)
+;
+;Set the track in BC - 0 based.
+;
+		brw bios_ret
+
+bios_11_SETSEC:
+;
+;SETSEC (function 11)
+;
+;Set the sector in BC. Under CP/M 1 and 2 a sector is 128 bytes.
+; Under CP/M 3 the sector size is given in the Disk Parameter Block.
+;
+;There has been discussion in comp.os.cpm about whether the parameter
+; to this function is a byte or a word. The conclusion (based on
+; examining the BDOS source) was that it is a word.
+;
+		brw bios_ret
+
+bios_12_SETDMA:
+;
+;SETDMA (function 12)
+;
+;The next disc operation will read its data from (or write its
+; data to) the address given in BC.
+;
+		brw bios_ret
+
+bios_13_READ:
+;
+;READ (function 13)
+;
+;Read the currently set track and sector at the current DMA address.
+; Returns A=0 for OK, 1 for unrecoverable error, 0FFh if media changed.
+;
+		brw bios_ret
+
+bios_14_WRITE:
+;
+;WRITE (function 14)
+;
+;Write the currently set track and sector. C contains a deblocking code:
+;
+;C=0 - Write can be deferred
+;C=1 - Write must be immediate
+;C=2 - Write can be deferred, no pre-read is necessary.
+;Returns A=0 for OK, 1 for unrecoverable error, 2 if disc is readonly, 0FFh if media changed.
+;
+		brw bios_ret
+
+bios_15_LISTST:
+;
+;LISTST (function 15)
+;
+;Return status of current printer device.
+;
+;Returns A=0 (not ready) or A=0FFh (ready).
+;
+		brw bios_ret
+
+bios_16_SECTRAN:
+;
+;SECTRAN (function 16)
+;
+;Translate sector numbers to take account of skewing.
+;
+;On entry, BC=logical sector number (zero based) and DE=address of translation table. On exit, HL contains physical sector number. On a system with hardware skewing, this would normally ignore DE and return either BC or BC+1.
+;
+		brw bios_ret
+
+bios_17_CONOST:
+;
+;CONOST (function 17)
+;
+;Return status of current screen output device.
+;Returns A=0 (not ready) or A=0FFh (ready).
+;
+        movb    #^xff  , reg_A
+		brw     bios_ret
+bios_18_AUXIST:
+;
+;AUXIST (function 18)
+;
+;Return status of current auxiliary input device.
+;
+;Returns A=0 (not ready) or A=0FFh (ready).
+;
+		brw bios_ret
+
+bios_19_AUXOST:
+;
+;AUXOST (function 19)
+;
+;Return status of current auxiliary output device.
+;
+;Returns A=0 (not ready) or A=0FFh (ready).
+
+		brw bios_ret
+
+bios_20_DEVTBL:
+;
+;DEVTBL (function 20)
+;
+;Return in HL the address of the devices table, or 0 if the devices table isn't implemented.
+;
+;The devices table will be visible to programs without the need for bank switching, ie. it will be in common memory.
+;
+;The device table contains one entry for each character device. Each entry is formed:
+;
+;	DEFB	'NAME  '	;Name, 6 bytes. If the first byte is zero,
+;				;this is the end of the table.
+;	DEFB	mode		;Bitmapped value:
+;				;Bit 0 set => can input from this device
+;				;Bit 1 set => can output to this device
+;				;Bit 2 set => can change the baud rate
+;				;Bit 3 set => supports XON/XOFF
+;				;Bit 4 set => is using XON/XOFF
+;				;Bits 5,6,7 set to 0.
+;				; Amstrad extension: If bit 7 is set, output
+;				;to the device does not time out. 
+;	DEFB	baudrate	;Coded speed, 1-15 or 0 if speed can't be
+;				;changed.
+;				;Rates are 50,75,110,134.5,150,300,600,1200,
+;				;         1800,2400,3600,4800,7200,9600,19200.
+;The maximum number of devices allowed in CP/M Plus is unclear. The documentation variously says there can be 12 or 13, while the DEVICE.COM source code suggests 15.
+;
+		brw bios_ret
+
+bios_21_DEVINI:
+;
+;DEVINI (function 21)
+;
+;Reinitialise character device number C - called when the device's settings (baud rate, mode etc.) are changed.
+;
+		brw bios_ret
+
+bios_22_DRVTBL:
+;
+;DRVTBL (function 22)
+;
+;Return in HL the address of the drive table, or 0 (or 0FFFFh, or 0FFFEh) if the drive table isn't implemented. The drive table contains 16 pointers to the Disc Parameter Headers of the 16 disc drives A-P; if a pointer is 0 it means that the corresponding drive does not exist.
+;
+;The drive table is usually (but not always) in common memory (ie accessible by user programs).
+;
+		brw bios_ret
+
+bios_23_MULTIO:
+;
+;MULTIO (function 23)
+;
+;Notify the BIOS that the BDOS is intending to transfer a number of consecutive disc sectors with READ or WRITE. Entered with C = number of calls that will be made; up to 16k of data will be transferred.
+;
+;The idea is that after the MULTIO call, the BIOS can choose to transfer all the data in the first READ/WRITE operation, and then not to do anything on the subsequent (n-1) operations.
+;
+		brw bios_ret
+
+bios_24_FLUSH:
+;
+;FLUSH (function 24)
+;
+;Write any pending data to disc.
+;
+;Returns A=0 if successful, 1 for physical disc error, 2 for drive R/O.
+;
+;This function is only useful when the BIOS is doing the deblocking - ie, the physical sector size is not the size that the BIOS reports to the BDOS.
+;
+		brw bios_ret
+
+bios_25_MOVE:
+;
+;MOVE (function 25)
+;
+;Move BC bytes of memory, from the address in DE to the address in HL (the other way round from the Z80's LDIR instruction). Should return HL and DE pointing to the first addresses not copied. If XMOVE is used before this function, data are moved between two memory banks.
+;
+		brw bios_ret
+
+bios_26_TIME:
+;
+;TIME (function 26)
+;
+;Get the current date and time into the SCB (at BOOT-0Ch). HL and DE must be preserved. If C=0FFh, then set the time from the SCB instead.
+;
+;The format of the 5-byte buffer is:
+;
+;	DW	day	;Day 1 is 1 Jan 1978
+;	DB	hour	;packed BCD
+;	DB	minute	;packed BCD
+;	DB	second	;packed BCD
+
+		brw bios_ret
+bios_27_SELMEM:
+;
+;SELMEM (function 27)
+
+;
+;Set the current bank to the number in A. Bank 1 is the bank in which user programs run (the TPA); Bank 0 and any other banks are used by CP/M for disc buffers or as a RAMdisc.
+;
+;According to the DRI documentation, this function must preserve all registers except A.
+;
+		brw bios_ret
+
+bios_28_SETBNK:
+;
+;SETBNK (function 28)
+;
+;Set the bank to be used for the next read/write sector operation. The bank number is passed in A. Note that the BDOS will call SETBNK after calling SETDMA; some BIOSes insist on this order, so it's safest if your programs do the same.
+;
+		brw bios_ret
+
+bios_29_XMOVE:
+;
+;XMOVE (function 29)
+;
+;After XMOVE, the next call to MOVE will move data between different memory banks. Call XMOVE with C=source bank and B=destination bank. According to the CP/M Plus System Guide, the BDOS will only ever use this function to move 128 or fewer bytes in one go; some BIOSes may not support bigger moves between banks.
+;
+		brw bios_ret
+
+bios_30_USERF:
+;
+;USERF (function 30)
+;
+;This function is reserved for the author of the BIOS to add any extra features. On Amstrad computers, for example, this call accesses the extended BIOS functions.
+;
+		brw bios_ret
+
+;RESERV1 and RESERV2 (functions 31, 32)
+;
+;These calls are reserved and contain JMP 0 instructions.
+; for the moment make them unknown_op!
+;
+bios_31_RESERV1:
+        brw     unknown_op          ; NOP
+bios_32_RESERV2:
+        brw     unknown_op          ; NOP
+BDOS_9_C_WRITESTR:      ;   bios_33_RESERV3:
+; Entered with BDOS function C=9, DE=address of string.
+; ignore C
+
+    pushl   r9
+    movzwl  reg_DE, r9
+10$:
+    movb    (r9)[r11], reg_C
+    cmpb    reg_C, #^A/$/  	; cmp to '$'
+    beql    20$
+    $QIOW_S efn=#2            ,-
+        func=#IO$_WRITEVBLK   ,-
+        chan=TT_CHAN          ,-
+        iosb=TT_IOSB          ,-
+        p1=reg_C              ,-
+        p2=#1
+    bsbw    error
+    incw    r9
+    incw    reg_DE
+
+20$:
+    brw bios_ret
+
+        brw     unknown_op          ; NOP
+bios_34_RESERV4:
+        brw     unknown_op          ; NOP
+bios_35_RESERV5:
+        brw     unknown_op          ; NOP
+bios_36_RESERV6:
+        brw     unknown_op          ; NOP
+bios_37_RESERV7:
+        brw     unknown_op          ; NOP
+bios_38_RESERV8:
+        brw     unknown_op          ; NOP
+bios_39_RESERV9:
+        brw     unknown_op          ; NOP
+bios_40_RESERV10:
+        brw     unknown_op          ; NOP
+bios_41_RESERV11:
+        brw     unknown_op          ; NOP
+bios_42_RESERV12:
+        brw     unknown_op          ; NOP
+bios_43_RESERV13:
+        brw     unknown_op          ; NOP
+bios_44_RESERV14:
+        brw     unknown_op          ; NOP
+bios_45_RESERV15:
+        brw     unknown_op          ; NOP
+bios_46_RESERV16:
+        brw     unknown_op          ; NOP
+bios_47_RESERV17:
+        brw     unknown_op          ; NOP
+bios_48_RESERV18:
+        brw     unknown_op          ; NOP
+bios_49_RESERV19:
+        brw     unknown_op          ; NOP
+bios_50_RESERV20:
+        brw     unknown_op          ; NOP
+bios_51_RESERV21:
+        brw     unknown_op          ; NOP
+bios_52_RESERV22:
+        brw     unknown_op          ; NOP
+bios_53_RESERV23:
+        brw     unknown_op          ; NOP
+bios_54_RESERV24:
+        brw     unknown_op          ; NOP
+bios_55_RESERV25:
+        brw     unknown_op          ; NOP
+bios_56_RESERV26:
+        brw     unknown_op          ; NOP
+bios_57_RESERV27:
+        brw     unknown_op          ; NOP
+bios_58_RESERV28:
+        brw     unknown_op          ; NOP
+bios_59_RESERV29:
+        brw     unknown_op          ; NOP
+bios_60_RESERV30:
+        brw     unknown_op          ; NOP
+bios_61_RESERV31:
+        brw     unknown_op          ; NOP
+bios_62_RESERV32:
+        brw     unknown_op          ; NOP
+bios_63_RESERV33:
+        brw     unknown_op          ; NOP
+
+BIOS_RET:
+	    brw		fetch
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 opED_11:
             extzv    #0, #6, r0, r3
             caseb    r3, #0, #9
     10$:        .word    const-10$     ; C0
-                .word    conout-10$    ; C1
-                .word    diskio-10$    ; C2
+                .word    conin-10$     ; C1
+                .word    conout-10$    ; C2
                 .word    diskio-10$    ; C3
-                .word    read_rdr-10$  ; C4
-                .word    write_pun-10$ ; C5
-                .word    write_lpt-10$ ; C6
-                .word    flash-10$     ; C7
-                .word    OFFLOAD-10$   ; C8 DISKIO BC BYTES
-                .word    BLOCKWRITE-10$; C9 DISKIO BC BYTES
+                .word    diskio-10$    ; C4
+                .word    read_rdr-10$  ; C5
+                .word    write_pun-10$ ; C6
+                .word    write_lpt-10$ ; C7
+                .word    flash-10$     ; C8
+                .word    OFFLOAD-10$   ; C9 DISKIO BC BYTES
+                .word    BLOCKWRITE-10$; CA DISKIO BC BYTES
             brw     unknown_op         ; unreachable
                 
 diskio:
@@ -1528,7 +2086,8 @@ OFFLOAD:    ; read BC bytes from TRK D SEC E to (HL)
             brw     op_RET
 
 opED_01:
-            caseb    r3, #0, #7
+            extzv   #0, #3, r0, r3
+            caseb   r3, #0, #7
     10$:        .word    opED_01_xxx_000-10$  ;0 IN    r, (C) & tstport(C)
                 .word    opED_01_xxx_001-10$  ;1 OUT    r, (C)
                 .word    opED_01_xxx_010-10$  ;2 SBC    ADC 16bit HL, rr
@@ -1604,16 +2163,16 @@ opED_01_xxx_011:                         ; LD (pq), rr  LD rr, (pq)
             incw    r10
             extzv   #4, #2, r0, r2       ; get reg #
             movl    ptr_BC[r2], r2       ; get address of reg in r2
-            movw    TEMP,  r1
+            movzwl  TEMP,  r1            ; get the value of the Z80 address
             bbs     #3, r0, opLDrrpq
 opLDpqrr:
             movb    (r2)+, (r1)[r11]     ; reg to memory
-            incw    r3
+            incw    r1
             movb    (r2), (r1)[r11]
             brw     fetch
 opLDrrpq:
             movb    (r1)[r11], (r2)+     ; memory to reg
-            incw    r3
+            incw    r1
             movb    (r1)[r11], (r2)
             brw     fetch
             
@@ -1807,7 +2366,10 @@ opED_10_100_000:                              ; LDI
     10$:    brw     fetch
     
 opED_10_110_000:                              ; LDIR
+; yep its crap, forgot to inc r1,r4 all thoughs years ago. and all the related instr
     10$:    movb    (r1)[r11], (r4)[r11]
+            incw    r1
+            incw    r4
             incw    @ptr_IDX
             incw    reg_DE
             decw    reg_BC
@@ -1827,6 +2389,8 @@ opED_10_101_000:                              ; LDD
 opED_10_111_000:                              ; LDDR
     10$:    movb    (r1)[r11], (r4)[r11]
             decw    @ptr_IDX
+            decw    r1
+            decw    r4
             decw    reg_DE
             decw    reg_BC
             bneq    10$
@@ -1855,13 +2419,14 @@ opED_10_100_001:                              ; CPI
             bisb2   #^x04, reg_F        ; set V flag
     10$:    brw     fetch
     
-opED_10_110_001:                              ; CPIR
+opED_10_110_001:                        ; CPIR
     10$:    movzwl  @ptr_IDX, r1
             movzbl  (r1)[r11], r3
             movb    reg_A, r7           ; temo save reg_A
             bsbw    subr3toA            ; sub r3 from reg_A
             movb    r7, reg_A           ; restore reg_A
             incw    @ptr_IDX
+	    incw    r1
             decw    reg_BC
             bneq    10$
             bisb2   #^x04, reg_F        ; set V flag
@@ -1886,6 +2451,7 @@ opED_10_111_001:                              ; CPDR
             bsbw    subr3toA            ; sub r3 from reg_A
             movb    r7, reg_A           ; restore reg_A
             decw    @ptr_IDX
+            decw    r1
             decw    reg_BC
             bneq    10$
             bisb2   #^x04, reg_F        ; set V flag
@@ -1967,7 +2533,7 @@ z80config:
             clrw    NEW_PC
             clrw    TEMP
 
-	    movaq   dump_z80_reg_msg_dsc, r6
+            movaq   dump_z80_reg_msg_dsc, r6
             movaq   outbuf_dsc, r7
 	
             movc5   DSC$W_LENGTH(r6), @DSC$A_POINTER(r6), #^A/ /, DSC$W_LENGTH(r7) , @DSC$A_POINTER(r7)
@@ -2011,15 +2577,19 @@ z80config:
             bneq    boot_read_loop     ; skip records not begining with ':'
 
             bsbw    get_hex            ; get length byte
+	    addb2   r0, CHKSUM	       ; accumulate for chksum
             movl    r0, r7
 
             bsbw    get_hex            ; get load address
+	    addb2   r0, CHKSUM	       ; accumulate for chksum
 	    ashl    #8, r0, r10        ; shift byte to upper
 
             bsbw    get_hex            ; load the two hex bytes into the target z80 index
+	    addb2   r0, CHKSUM	       ; accumulate for chksum
 	    bisb2   r0, r10            ; or the lower byte onto it
 
 	    bsbw    get_hex            ; get the type
+	    addb2   r0, CHKSUM	       ; accumulate for chksum
 
             caseb    r0, #0, #5
     10$:        .word Intelhex_data-10$
@@ -2039,16 +2609,16 @@ IntelHex_Start_LinearAddr:
 Intelhex_data:
     20$:
             bsbw    get_hex
+	    addb2   r0, CHKSUM	       ; accumulate for chksum
             movl    r0, r3             ; save the byte
-	    addb2   r3, CHKSUM	       ; accumulate for chksum
             movb    r3, (r10)[r11]
-            bsbw    print_loaded
+            ;bsbw    print_loaded
             incw    r10
             sobgtr  r7, 20$            ; loop for length
 chkchksum:
             bsbw    get_hex            ; get chksum byte in r0
-            ;mnegb   CHKSUM, CHKSUM
-            mcomb   CHKSUM, CHKSUM
+            mnegb   CHKSUM, CHKSUM
+            ;mcomb   CHKSUM, CHKSUM
 	    cmpb    r0, CHKSUM
             bneq    chksum_error
             brw     boot_read_loop     ; get next record
@@ -2108,13 +2678,32 @@ get_hex:    pushl   r1
             rsb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+conin:
+	    bicb2   #^x04, reg_F		; clear P flag aka V
+	    cmpb    l^save_key(r11), #^xFF
+        bneq    10$ ; branch if char already in save_key
+	    ; otherwise get one now
+	    $QIOW_S  efn=#1                            ,-
+                    func=#IO$_READVBLK!IO$M_NOECHO    ,-
+                    chan=TT_CHAN                      ,-
+                    iosb=TT_IOSB                      ,-
+                    p1=reg_A                          ,-
+                    p2=#1                             ; request getch
+        bsbw    error
+	    movb    reg_A, l^save_key(r11)
+		
+   10$:	movb    l^save_key(r11), reg_A
+	    movb    #^xFF, l^save_key(r11)
+	    bisb2   #^x04, reg_F		; set P flag aka V
+        brw     op_RET
+
 const:
             cmpb    l^save_key(r11), #^xFF
             bneq    10$                    ; branch if char in buf
-            tstb    qio_flag
-            bneq    5$
+            ;tstb    qio_flag
+            ;bneq    5$
             movb    #^xFF, l^save_key(r11)
-            movb    #^xFF, qio_flag
+            ;movb    #^xFF, qio_flag
             $QIO_S  efn=#1                            ,-
                     func=#IO$_READVBLK!IO$M_NOECHO    ,-
                     chan=TT_CHAN                      ,-
@@ -2124,14 +2713,14 @@ const:
             bsbw    error
             
     5$:     cmpb    l^save_key(r11), #^xFF    ; did we get a char?
-            beql    20$                    ; branch yes
-    10$:    movb    #^xFF, reg_A        ; tell them we got a char
-            bicb2   #^x40, reg_F        ; clear Z flag
-            clrb    qio_flag            ; qio must  have completed
+            beql    20$                       ; branch yes
+    10$:    movb    #^xFF, reg_A              ; tell them we got a char
+            bicb2   #^x40, reg_F              ; clear Z flag
+            ;clrb    qio_flag                  ; qio must  have completed
             brb     30$
             
-    20$:    clrb    reg_A               ; tell them no char
-            bisb2   #^x40, reg_F        ; set Z flag
+    20$:    clrb    reg_A                     ; tell them no char
+            bisb2   #^x40, reg_F              ; set Z flag
     30$:
             brw     op_RET
             
@@ -2139,18 +2728,16 @@ const:
 conout:
             pushl      r0
             pushl      r1
-	    movb       reg_C, r0
-            bsbw       emuoutc
+
+            $QIOW_S efn=#2                ,-
+                    func=#IO$_WRITEVBLK   ,-
+                    chan=TT_CHAN          ,-
+                    iosb=TT_IOSB          ,-
+                    p1=reg_C              ,-
+                    p2=#1
+            bsbw    error
             popl       r1
             popl       r0
-         
-;            $QIOW_S efn=#2                ,-
-;                    func=#IO$_WRITEVBLK   ,-
-;                    chan=TT_CHAN          ,-
-;                    iosb=TT_IOSB          ,-
-;                    p1=reg_C              ,-
-;                    p2=#1
-;            bsbw    error
             brw     op_RET
             
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2163,9 +2750,9 @@ error:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 clear_outbuf: .word ^M<r0,r1, r2, r3, r4, r5>
-            movaq    outbuf_dsc, r5
+        movaq    outbuf_dsc, r5
 	    movw     #OUT$S_RECORDSIZE, DSC$W_LENGTH(r5) ; set the initial length to max
-            movc5    #0, @DSC$A_POINTER(r5), #0, DSC$W_LENGTH(r5), @DSC$A_POINTER(r5) ; zerofill
+        movc5    #0, @DSC$A_POINTER(r5), #0, DSC$W_LENGTH(r5), @DSC$A_POINTER(r5) ; zerofill
 	    ret
             
 
@@ -2193,7 +2780,8 @@ setflagsstr:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 disassembler:
             pushl   r0          ; save opcode
-            pushl   CURIP
+            movzwl  CURIP, r0
+            pushl   r0
             pushal  z80_memory
             calls   #2, diz80
             popl    r0          ; restore opcode
@@ -2256,21 +2844,21 @@ halt_message:
 
 unknown_op:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-            movzbl   -1(r10)[r11], -(sp); opcode
-            pushaq   outbuf_dsc         ; outbuf by desc
-            pushaw   outbuf_len;
-            pushaq   err_unknown_op_dsc ; ctrstr by desc
-            calls    #4, g^sys$fao
-            bsbw     error
-            pushaq   outbuf_dsc
-            calls    #1, emuoutdsc
-            bsbw     error
+;            movzbl   -1(r10)[r11], -(sp); opcode
+;            pushaq   outbuf_dsc         ; outbuf by desc
+;            pushaw   outbuf_len;
+;            pushaq   err_unknown_op_dsc ; ctrstr by desc
+;            calls    #4, g^sys$fao
+;            bsbw     error
+;            pushaq   outbuf_dsc
+;            calls    #1, emuoutdsc
+;            bsbw     error
 	    brw      fetch
             
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 emuoutc:    ; write emulator console
-	    pushl   r1
+            pushl   r1
             movb    r0, emucons_iochar
             $QIOW_S efn=#42              ,-
                     func=#IO$_WRITEVBLK  ,-
@@ -2278,29 +2866,29 @@ emuoutc:    ; write emulator console
                     iosb=emucons_iosb    ,-
                     p1=emucons_iochar    ,-
                     p2=#1
- 	    bsbw    error
+            bsbw    error
             popl    r1
             rsb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 emugetc:    ; read  emulator console
-            $QIO_S  efn=#43                         ,-
+            $QIOW_S efn=#43                         ,-
                     func=#IO$_READVBLK!IO$M_NOECHO  ,-
                     chan=emucons_chan               ,-
                     iosb=emucons_iosb               ,-
                     p1=emucons_iochar               ,-
                     p2=#1                           ; request getch
- 	    bsbw    error
+            bsbw    error
             movzbl  emucons_iochar, r0
             rsb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 emuoutdsc:  .word ^M<r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11>
             ; print str at descriptor 4(ap)
-	    movl     4(ap), r5
-            movl     DSC$A_POINTER(r5), r1
-            movzwl   DSC$W_LENGTH(r5), r2
-            bsbw     emuoutstr
+        movl     4(ap), r5
+        movl     DSC$A_POINTER(r5), r1
+        movzwl   DSC$W_LENGTH(r5), r2
+        bsbw     emuoutstr
 	    ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
