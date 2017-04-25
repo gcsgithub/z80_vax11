@@ -1776,6 +1776,7 @@ BDOS_9_C_WRITESTR:      ;   bios_33_RESERV3:
     bsbw    error
     incw    r9
     incw    reg_DE
+    brb	    10$
 
 20$:
     brw bios_ret
