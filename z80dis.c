@@ -981,7 +981,7 @@ static int _diz80(unsigned char *t)
              0005: 	ld sp,(lldb) print comtab[t[0]].com1
              (char *const) $0 = 0x0000000100003565 "ld sp,"
              (lldb) print bstr
-             (char [1024]) $1 = "H\x13\x9ex\377
+             (char [1024]) $1 = "H\x13\x9ex\377
              (lldb)
              */
             disout("%s",comtab[t[0]].com1);
