@@ -952,30 +952,32 @@ rrcx:
             ; I/O reg_F
             ; RLC/RL/RRC/RR r       SZ503P0C
             ; TOCHECK: reg_F gets the correct cleared bits?
+            bicb2   #^x13, reg_F            ; H, N, C
             movzbl  (r2), r4                ; get byte
             clrl    r3
             bicb3   #^x0FE, r4, r3          ; bit 0 -> r3
             bisb2   r3, reg_F               ; set C in z80flags
+
             ashl    #8, r3, r3              ; mk mask for bit8
             bisl2   r3, r4                  ; add bit before shift
             ashl    #-1, r4, r4             ; shift right
             movzbl  r4, r4
-            bicb2   #^x13, reg_F            ; H, N, C
             bicb2   #z80Flagm_HN, reg_F     ; 0x12 clear H, N flags
             rsb
 
                 
 rlcx:
 ;          +-->---------->-------->--+
-;          |    +-+-+-+-+-+-+-+-+    |
-;      C <-+<-- |7|6|5|4|3|2|1|0| <--+
-;               +-+-+-+-+-+-+-+-+
+;     +-+  |    +-+-+-+-+-+-+-+-+    |
+;     |C|<-+<-- |7|6|5|4|3|2|1|0| <--+
+;     +-+       +-+-+-+-+-+-+-+-+
 ;
 ; b7 -> C, b0
 ;
             ; input r2 byte pointer
             ; return byte in r4
             ; I/O reg_F
+            bicb2   #^x13, reg_F            ; H, N, C
             movzbl  (r2), r4                ; get byte
             clrl    r3
             bicb3   #^x07F, r4, r3          ; bit 7 -> r3
@@ -984,46 +986,75 @@ rlcx:
             ashl    #1, r4, r4              ; shift left
             bisl2   r3, r4                  ; add bit before shift
             movzbl  r4, r4
-            bicb2   #^x13, reg_F            ; H, N, C
             bicb2   #z80Flagm_HN, reg_F     ; 0x12 clear H, N flags
             rsb
 
 ; Rot through Carry
 rrx:
+;           +------------------------------+
+;           |    +-+-+-+-+-+-+-+-+   +-+   |
+;           +--> |7|6|5|4|3|2|1|0| ->|C| ->+
+;                +-+-+-+-+-+-+-+-+   +-+
+;
             ; input r2 byte pointer
             ; return byte in r4
             ; I/O reg_F
             ; eflags: SZ503P0C
-            movzbl  (r2), r4                ; get byte
-            clrl    r3
+
+         ; save the current z80 Carry in r5
             clrl    r5
-            bicb3   #^x0FE, r4, r3          ; bit 0 -> r3 Save the bit to carry
-            ashl    #8, reg_F, r5           ; mk mask for bit 8 of carry flag
-            bisl2   r5, r4                  ; add bit before shift
-            ashl    #-1, r4, r4             ; shift
-            bisb2   r3, reg_F               ; set C in z80flags
-            movzbl  r4, r4
-            bicb2   #^x13, reg_F            ; H, N, C
+	    bicb3   #^x0FE, reg_F, r5       ; get the current Z80 C flag in r5
+
             bicb2   #z80Flagm_HN, reg_F     ; 0x12 clear H, N flags
+
+            movzbl  (r2), r4                ; get byte
+
+            clrl    r3
+            bicb3   #^x0FE, r4, r3          ; bit 0 -> r3 Save the bit to carry
+
+            ashl    #8, r5, r5              ; mk mask for bit 8 of carry flag 1xx
+            bisl2   r5, r4                  ; add bit before shift  1xx
+
+            ashl    #-1, r4, r4             ; shift right being the C into bit 7
+            bisb2   r3, reg_F               ; set C in z80flags
+
+            movzbl  r4, r4
             rsb
 
 
-rlx:
+rlx: ; rla 
+;           +--->---------->-------->----+
+;           |  +-+   +-+-+-+-+-+-+-+-+   |
+;           +<-|C|<- |7|6|5|4|3|2|1|0| <-+
+;              +-+   +-+-+-+-+-+-+-+-+
+;
             ; input r2 byte pointer
             ; return byte in r4
             ; I/O reg_F
             ; eflags: SZ503P0C
-            movzbl  (r2), r4                ; get byte
-	    clrl    r3
-            bicb3   #^x07F, r4, r3          ; bit 7 -> r3 save the bit to carry
-            ashl    #-7, r3, r3             ; get the bit in C position of flags
-            bicb3   #^xFE, reg_F, r5        ; get the C from flags
-            ashl    #1, r4, r4              ; shift
-            bisb2   r5, r4                  ; or the C flag to result
-            movzbl  r4, r4
-            bicb2   #^x13, reg_F            ; H, N, C
-            bisb2   r3, reg_F               ; set C in z80flags
+
+         ; save the current z80 Carry in r5
+            clrl    r5
+            bicb3   #^xFE, reg_F, r5        ; get the orig C from flag
+
             bicb2   #z80Flagm_HN, reg_F     ; 0x12 clear H, N flags
+
+            movzbl  (r2), r4                ; get byte
+
+
+         ; bit 7 to Z80 Carry flag
+	    clrl    r3
+            bicb3   #^x7F, r4, r3           ; bit 7 -> r3 save the bit to carry
+	    ashl    #-7, r3, r3             ; move bit7 to bit 0 ie C
+                                            ; r3 will be the new z80_C
+	    bisb2   r3, reg_F               ; set the Z80 C to bit 7
+
+
+            ashl    #1, r4, r4              ; shift left
+	    bicb2   #^x01, r4               ; clear lower bit
+            bisb2   r5, r4                  ; OR the orig Z80 C flag to the lower bit
+
+            movzbl  r4, r4
             rsb
 
 op00_000_111:                               ; RLCA
@@ -1033,6 +1064,12 @@ op00_000_111:                               ; RLCA
             brw     fetch
             
 op00_001_111:                               ; RRCA
+;          +-------------------------+
+;          |    +-+-+-+-+-+-+-+-+    |
+;          +--> | | | | | | | | | -> + -> C
+;               +-+-+-+-+-+-+-+-+
+;
+            ; input r2 byte pointer
             movab   reg_A, r2
             bsbw    rrcx
             movb    r4, reg_A
@@ -2094,12 +2131,14 @@ opED_10_100_000:                            ; LDI
             ; eflags:  --*0**0-  PV set if BC not 0
             bicb2   #^x3E, reg_F            ; clear 5,H,3,V
             movb    (r1)[r11], (r4)[r11]
+
             incw    @ptr_IDX
             incw    reg_DE
             decw    reg_BC
-            beql    10$
+            bneq    15$
+
             bisb2   #z80Flagm_Z!z80Flagm_PV, reg_F ; set V flag
-    10$:    brw     fetch
+    15$:    brw     fetch
     
 opED_10_110_000:                            ; LDIR
             ; eflags:  --*0**0-  PV set if BC not 0
@@ -2115,7 +2154,8 @@ opED_10_110_000:                            ; LDIR
             incw    r4                      ; DE++
 	    decw    r5                      ; BC--
             bneq    10$
-
+	    
+    15$:
             movw    r5,  reg_BC
 	    movw    r4,  reg_DE
             movw    r1,  @ptr_IDX
@@ -2128,12 +2168,14 @@ opED_10_101_000:                            ; LDD
             ; eflags:  --*0**0-  PV set if BC not 0
             bicb2   #^x3E, reg_F            ; clear 5,H,3,V
             movb    (r1)[r11], (r4)[r11]
+
             decw    @ptr_IDX
             decw    reg_DE
             decw    reg_BC
-            bneq    10$
+            bneq    15$
+
             bisb2   #z80Flagm_Z!z80Flagm_PV, reg_F  ; set V flag
-    10$:    brw     fetch
+    15$:    brw     fetch
 
 opED_10_111_000:                            ; LDDR
             ; eflags:  --*0**0-  PV set if BC not 0
@@ -2174,8 +2216,10 @@ opED_10_100_001:                            ; CPI
             bsbw    subr3toA                ; add neg(r3) to reg_A
             movb    r7, reg_A               ; restore reg_A
             incw    @ptr_IDX
+
             decw    reg_BC
             bneq    10$
+
             bisb2   #^x04, reg_F            ; set V flag
     10$:    brw     fetch
     
@@ -2190,6 +2234,7 @@ opED_10_110_001:                            ; CPIR
             incw    r1
             decw    reg_BC
             bneq    10$
+
             bisb2   #z80Flagm_PV, reg_F     ; set V flag
             brw     fetch
             
@@ -2203,6 +2248,7 @@ opED_10_101_001:                            ; CPD
             decw    @ptr_IDX
             decw    reg_BC
             bneq    10$
+
             bisb2   #z80Flagm_PV, reg_F     ; set V flag
     10$:    brw     fetch
     
@@ -2217,6 +2263,7 @@ opED_10_111_001:                            ; CPDR
             decw    r1
             decw    reg_BC
             bneq    10$
+
             bisb2   #z80Flagm_PV, reg_F     ; set V flag
             brw     fetch
             
