@@ -189,6 +189,7 @@ z80Flagb_S       ==    7
 
 z80Flagm_CN      ==      z80Flagm_C!z80Flagm_SUBN 
 z80Flagm_HN      ==      z80Flagm_H!z80Flagm_SUBN 
+z80Flagm_HNC     ==      z80Flagm_H!z80Flagm_SUBN!z80Flagm_C 
 z80Flagm_ZN      ==      z80Flagm_Z!z80Flagm_SUBN 
 z80Flagm_SN      ==      z80Flagm_S!z80Flagm_SUBN 
 
@@ -305,8 +306,8 @@ reg_IR:
     reg_R:  .blkb    1
     reg_I:  .blkb    1
 
-CURIPADDR:  .long    0         ; current instruction pointer
-CURIP:      .word    0
+CURIPADDR:  .long    0         ; current instruction pointer VAX address
+CURIP:      .word    0         ; current instruction pointer Z80 address
 NEW_PC:     .blkw    1
 TEMP:       .blkw    1
 DMPTMP:     .blkw    1
@@ -628,33 +629,40 @@ Z80_START:: .word ^M<>
             calls   #3, envval  ;int envval( char *str, int len , char *buf)
             movb    ID_BUF+1, ID
             movb    ID_BUF  , ID+1
+
 ;;;;;;
 fetch:
 ;;;;;;
             blbc    brkflag, exec0
-breakpoint: clrb    brkflag
+breakpoint: clrb    brkflag       ; for debugging only 'set break breakpoint'
             bsbw    dump_z80_reg
 
 exec0:
-            movaw   reg_HL, ptr_IDX
+            movaw   reg_HL, ptr_IDX ; reset IDX pointer to HL
             addb3   reg_R, #1, r0 ; increment 7bits of R
             bicb2   #^x80, r0     ; clear high bit
             bicb2   #^x7f, reg_R  ; clear the low bits of R
             bisb2   r0,    reg_R  ; add the 7bits of add back
 
-fetch2:     
-            movzbl  (r10)[r11], r0
-            movw    r10, CURIP
+exec1:
+            movzbl  (r10)[r11], r0         ; FETCH r0 opcode here<<<<<!!!
+            movw    r10       , CURIP
             movab   (r10)[r11], CURIPADDR
+            bsbw    traceit       ; call trace it for the DD still pointing at DD,FD
 
-            blbc    runflag, fetched
+	    incw    r10
+
+fetch2:     ; FD,DD IX,IY loops to here so keep CURIP pointing to the prefix
+
+
+
+
+            blbc    runflag, 10$
             brw     halt
-
-fetched:
-            bsbw    traceit
+    10$:
+;            bsbw    traceit
 ;
 fetch0:
-            incw    r10           ; inc z80pc
 ;   
             extzv   #0, #3, r0, r2
             extzv   #6, #2, r0, r1
@@ -944,15 +952,16 @@ op00___111: ; RLCA, RRCA, RLA, RRA, DAA, CPL, SCF, CCF
 rrcx:
 ;          +-------------------------+
 ;          |    +-+-+-+-+-+-+-+-+    |
-;          +--> | | | | | | | | | -> + -> C
+;          +--> |7|6|5|4|3|2|1|0| -> + -> C
 ;               +-+-+-+-+-+-+-+-+
-;
+; RRCA,
             ; input r2 byte pointer
             ; return byte in r4
             ; I/O reg_F
             ; RLC/RL/RRC/RR r       SZ503P0C
             ; TOCHECK: reg_F gets the correct cleared bits?
-            bicb2   #^x13, reg_F            ; H, N, C
+
+            bicb2   #z80Flagm_HNC, reg_F    ; H, N, C
             movzbl  (r2), r4                ; get byte
             clrl    r3
             bicb3   #^x0FE, r4, r3          ; bit 0 -> r3
@@ -962,7 +971,6 @@ rrcx:
             bisl2   r3, r4                  ; add bit before shift
             ashl    #-1, r4, r4             ; shift right
             movzbl  r4, r4
-            bicb2   #z80Flagm_HN, reg_F     ; 0x12 clear H, N flags
             rsb
 
                 
@@ -972,12 +980,13 @@ rlcx:
 ;     |C|<-+<-- |7|6|5|4|3|2|1|0| <--+
 ;     +-+       +-+-+-+-+-+-+-+-+
 ;
-; b7 -> C, b0
-;
+; RLCA, RLC, 
+            ; b7 -> C, b0
             ; input r2 byte pointer
             ; return byte in r4
             ; I/O reg_F
-            bicb2   #^x13, reg_F            ; H, N, C
+
+            bicb2   #z80Flagm_HNC, reg_F    ; H, N, C
             movzbl  (r2), r4                ; get byte
             clrl    r3
             bicb3   #^x07F, r4, r3          ; bit 7 -> r3
@@ -986,16 +995,15 @@ rlcx:
             ashl    #1, r4, r4              ; shift left
             bisl2   r3, r4                  ; add bit before shift
             movzbl  r4, r4
-            bicb2   #z80Flagm_HN, reg_F     ; 0x12 clear H, N flags
             rsb
 
 ; Rot through Carry
 rrx:
-;           +------------------------------+
-;           |    +-+-+-+-+-+-+-+-+   +-+   |
-;           +--> |7|6|5|4|3|2|1|0| ->|C| ->+
-;                +-+-+-+-+-+-+-+-+   +-+
-;
+;          +------------------------------+
+;          |    +-+-+-+-+-+-+-+-+   +-+   |
+;          +--> |7|6|5|4|3|2|1|0| ->|C| ->+
+;               +-+-+-+-+-+-+-+-+   +-+
+; RRA,
             ; input r2 byte pointer
             ; return byte in r4
             ; I/O reg_F
@@ -1003,9 +1011,9 @@ rrx:
 
          ; save the current z80 Carry in r5
             clrl    r5
-	    bicb3   #^x0FE, reg_F, r5       ; get the current Z80 C flag in r5
+	    bicb3   #^x0FE, reg_F, r5       ; save the current Z80 C flag in r5
 
-            bicb2   #z80Flagm_HN, reg_F     ; 0x12 clear H, N flags
+            bicb2   #z80Flagm_HNC, reg_F    ; 0x13 clear H, N, C flags
 
             movzbl  (r2), r4                ; get byte
 
@@ -1022,12 +1030,12 @@ rrx:
             rsb
 
 
-rlx: ; rla 
-;           +--->---------->-------->----+
-;           |  +-+   +-+-+-+-+-+-+-+-+   |
-;           +<-|C|<- |7|6|5|4|3|2|1|0| <-+
-;              +-+   +-+-+-+-+-+-+-+-+
-;
+rlx: 
+;      +--->---------->-------->----+
+;      |  +-+   +-+-+-+-+-+-+-+-+   |
+;      +<-|C|<- |7|6|5|4|3|2|1|0| <-+
+;         +-+   +-+-+-+-+-+-+-+-+
+; RLA,
             ; input r2 byte pointer
             ; return byte in r4
             ; I/O reg_F
@@ -1035,9 +1043,9 @@ rlx: ; rla
 
          ; save the current z80 Carry in r5
             clrl    r5
-            bicb3   #^xFE, reg_F, r5        ; get the orig C from flag
+            bicb3   #^xFE, reg_F, r5        ; save the orig Z80 C flag in r5
 
-            bicb2   #z80Flagm_HN, reg_F     ; 0x12 clear H, N flags
+            bicb2   #z80Flagm_HNC, reg_F    ; 0x13 clear H, N, C flags
 
             movzbl  (r2), r4                ; get byte
 
@@ -1058,6 +1066,12 @@ rlx: ; rla
             rsb
 
 op00_000_111:                               ; RLCA
+;          +-->---------->-------->--+
+;     +-+  |    +-+-+-+-+-+-+-+-+    |
+;     |C|<-+<-- |7|6|5|4|3|2|1|0| <--+
+;     +-+       +-+-+-+-+-+-+-+-+
+;
+
             movab   reg_A, r2
             bsbw    rlcx
             movb    r4, reg_A
@@ -1065,9 +1079,9 @@ op00_000_111:                               ; RLCA
             
 op00_001_111:                               ; RRCA
 ;          +-------------------------+
-;          |    +-+-+-+-+-+-+-+-+    |
-;          +--> | | | | | | | | | -> + -> C
-;               +-+-+-+-+-+-+-+-+
+;          |    +-+-+-+-+-+-+-+-+    |   +-+
+;          +--> |7|6|5|4|3|2|1|0| -> + ->|C|
+;               +-+-+-+-+-+-+-+-+        +-+
 ;
             ; input r2 byte pointer
             movab   reg_A, r2
@@ -1076,12 +1090,22 @@ op00_001_111:                               ; RRCA
             brw     fetch
             
 op00_010_111:                               ; RLA
+;      +--->---------->-------->----+
+;      |  +-+   +-+-+-+-+-+-+-+-+   |
+;      +<-|C|<- |7|6|5|4|3|2|1|0| <-+
+;         +-+   +-+-+-+-+-+-+-+-+
+;
             movab   reg_A, r2
             bsbb    rlx
             movb    r4, reg_A
             brw     fetch
             
 op00_011_111:                               ; RRA
+;          +------------------------------+
+;          |    +-+-+-+-+-+-+-+-+   +-+   |
+;          +--> |7|6|5|4|3|2|1|0| ->|C| ->+
+;               +-+-+-+-+-+-+-+-+   +-+
+;
             movab   reg_A, r2
             bsbw    rrx
             movb    r4, reg_A
@@ -1172,21 +1196,21 @@ op00_101_111:                               ; CPL complement A
             ; --*1*-1-
             ; eflags: ---1--1-
             mcomb   reg_A, reg_A
-            bicb2   #^x13, reg_F            ; H, N, C
-            bisb2   #z80Flagm_HN, reg_F     ; set H & N flags
+            bicb2   #z80Flagm_HNC, reg_F    ; H, N, C
+            bisb2   #z80Flagm_HN,  reg_F    ; set H & N flags
             brw     fetch
             
 op00_110_111:                               ; SCF set carry flag
             ; SCF eflags: ---0--01 
-            bicb2   #^x13, reg_F            ; H, N, C
-            bisb2   #z80Flagm_C,  reg_F     ; set C
+            bicb2   #z80Flagm_HNC, reg_F    ; H, N, C
+            bisb2   #z80Flagm_C,   reg_F    ; set C
             brw     fetch
             
 op00_111_111:                               ; CCF complement carry flag
             ; CPL eflags: ---?--0C    F5, F3 from A register
             blbc    reg_F, op00_110_111     ; set carry flag
-            bicb2   #^x13, reg_F            ; H, N, C
-            bicb2   #z80Flagm_C,  reg_F     ; clear C
+            bicb2   #z80Flagm_HNC, reg_F    ; H, N, C
+            bicb2   #z80Flagm_C,   reg_F    ; clear C
             brw     fetch
             
 ;-----------------------------------------------------------------------
@@ -1401,7 +1425,7 @@ op_RET:
             incw    r2
             movw    r2, reg_SP
             movzwl  NEW_PC, r10
- end_RET:   brw     fetch
+ end_RET:   brw     exec0   ; fetch
  
 ;;;;;;;;;;;;;
 op11_xxx_001:                               ; POP rr, RET, EXX, PCHL, SPHL
@@ -1544,20 +1568,21 @@ op11_111_011:                               ; EI
 ;;;;;;;;;;;;;;;;;;
 
 op11_001_011: ; CB group
-            movzbl   (r10)[r11], r0         ; fetch opcode
+            movzbl   (r10)[r11], r0         ; fetch opcode or d when IX or IY
             incw     r10
 
-            bsbw     XXxxxrrr		    ; results in r2
+            bsbw     CBXXxxxrrr		    ; results in byte ptr r2
 
-            extzv    #6, #2, r0, r5
+            extzv    #6, #2, r0, r1
             beql     opCB00
 
+	    ; here for BIT,RES,SET
             extzv    #3, #3, r0, r3         ; the bit number
 
-            movl     #1, r4
+            movl     #1, r4                 ; shift left create mask for bit number
             ashl     r3, r4, r4             ; create bit mask in r4
 
-            caseb    r5, #0, #3
+            caseb    r1, #0, #3
                10$:  .word opCB00-10$ ; 00 branch already done after extzv
                      .word opCB01-10$ ; 01 BIT
                      .word opCB10-10$ ; 10 RES
@@ -1582,7 +1607,7 @@ opCB11:     ; SET
             brw      fetch
 
 opCB00:
-            movzbl   (r2), r4
+            movzbl   (r2), r4		    ; fetch the value
             bicb2    #^xD6, reg_F           ; clear S,Z,H,P,N
             extzv    #3, #3, r0, r3         ; get opcode
 
@@ -1603,33 +1628,54 @@ opCB00:
 ;;;;;;;;;;;;;;;;
 opCB_00_000_rrr:                            ; RLC
 ;;;;;;;;;;;;;;;;
+;         +-->---------->-------->--+
+;    +-+  |    +-+-+-+-+-+-+-+-+    |
+;    |C|<-+<-- |7|6|5|4|3|2|1|0| <--+
+;    +-+       +-+-+-+-+-+-+-+-+
+;
+; RLC
             bsbw    rlcx
             brw     CBsetflags
     
 ;;;;;;;;;;;;;;;;
 opCB_00_001_rrr:                            ; RRC
 ;;;;;;;;;;;;;;;;
+;         +-------------------------+
+;         |    +-+-+-+-+-+-+-+-+    |   +-+
+;         +--> |7|6|5|4|3|2|1|0| -> + ->|C|
+;              +-+-+-+-+-+-+-+-+        +-+
+;
             bsbw    rrcx
             brw     CBsetflags
             
 ;;;;;;;;;;;;;;;;
 opCB_00_010_rrr:                            ; RL
 ;;;;;;;;;;;;;;;;
+;     +--->---------->-------->----+
+;     |  +-+   +-+-+-+-+-+-+-+-+   |
+;     +<-|C|<- |7|6|5|4|3|2|1|0| <-+
+;        +-+   +-+-+-+-+-+-+-+-+
+;
             bsbw    rlx
             brb     CBsetflags
 
 ;;;;;;;;;;;;;;;;
 opCB_00_011_rrr:                            ; RR
 ;;;;;;;;;;;;;;;;
+;         +------------------------------+
+;         |    +-+-+-+-+-+-+-+-+   +-+   |
+;         +--> |7|6|5|4|3|2|1|0| ->|C| ->+
+;              +-+-+-+-+-+-+-+-+   +-+
+;
             bsbw    rrx
             brb     CBsetflags
             
 ;;;;;;;;;;;;;;;;
 opCB_00_100_rrr:                            ; SLA
 ;;;;;;;;;;;;;;;;
-;               +-+-+-+-+-+-+-+-+
-;          C <- | | | | | | | | | <- 0
-;               +-+-+-+-+-+-+-+-+
+;       +-+    +-+-+-+-+-+-+-+-+
+;       |C| <- |7|6|5|4|3|2|1|0| <- 0
+;       +-+    +-+-+-+-+-+-+-+-+
 ;
             bicb2    #z80Flagm_C, reg_F     ; clear C
             ashl     #1, r4, r4
@@ -1640,10 +1686,10 @@ opCB_00_100_rrr:                            ; SLA
 ;;;;;;;;;;;;;;;;
 opCB_00_101_rrr:                            ; SRA
 ;;;;;;;;;;;;;;;;
-;               +-+-+-+-+-+-+-+-+
-;            +->| | | | | | | | | -> C
-;            |  +-+-+-+-+-+-+-+-+
-;            |___|
+;              +-+-+-+-+-+-+-+-+   +-+
+;           +->|7|6|5|4|3|2|1|0| ->|C|
+;           |  +-+-+-+-+-+-+-+-+   +-+
+;           |___|
 ;
             bicb3   #^xfe, r4, r3           ; get LBit0
             bisb2   r3       , reg_F        ; set the carry flag
@@ -1661,21 +1707,24 @@ opCB_00_110_xxx:
 ;;;;;;;;;;;;;;;;
 opCB_00_111_rrr:                            ; SRL
 ;;;;;;;;;;;;;;;;
-;               +-+-+-+-+-+-+-+-+
-;          0 -> | | | | | | | | | -> C
-;               +-+-+-+-+-+-+-+-+
+;              +-+-+-+-+-+-+-+-+    +-+
+;         0 -> |7|6|5|4|3|2|1|0| -> |C|
+;              +-+-+-+-+-+-+-+-+    +-+
 ;
             bicb3   #^xfe, r4, r3           ; get LBit0
             bisb2   r3, reg_F               ; set the carry flag
-            ashl    #1, r4, r4
+            ashl    #1, r4, r4              ; shift left +1
             ;brb    CBsetflags               ; fall through to code no need to branch
-            
+
+
+;;;;;;;;;;;;;
 CBsetflags: ; set S, Z, P
+;;;;;;;;;;;;;
             ; eflags: SZ503P0C
-            movb    r4, (r2)
-            beql    10$
+            movb    r4, (r2)		    ; store result back into dest
+            beql    10$                     ; TODO: makesure movb has set the Z flag ??
             bisb2   #z80Flagm_Z, reg_F      ; set Z flag
-    10$:    bbc     #z80Flagb_S, r4, 20$
+    10$:    bbc     #7 , r4, 20$            ; check sign bit
             bisb2   #z80Flagm_S, reg_F      ; set S flag
     20$:    movzbl  r4, r4
             bisb2   parity_mask[r4], reg_F  ; set P flag
@@ -1761,9 +1810,13 @@ op_CALL:    movb    (r10)[r11], NEW_PC      ; fetch the address to call into NEW
 ;
 op_FD:                                      ; use IY
             movaw   reg_IY, ptr_IDX
+            movzbl  (r10)[r11], r0          ; fetch op code
+            incw    r10
             brw     fetch2
 op_DD:                                      ; use IX
             movaw   reg_IX, ptr_IDX
+            movzbl  (r10)[r11], r0          ; fetch op code
+            incw    r10
             brw     fetch2
 
             
@@ -3588,6 +3641,52 @@ XXxxxrrr:
 	    rsb
 ;.endm
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;######################################################################
+;# input r0 opcode
+;# result r2
+;# 
+;.macro  XXxxxrrr
+; set break CBXXxxxrrr,op11_001_011,rlx
+CBXXxxxrrr:
+	    ;.show EXPANSIONS
+            ; CB is not like other instructions for (IX+d) (IY+d)
+            ;  is it IX,IY ? DD, CB, d , opcode
+            ;
+            movl    ptr_IDX,    r3          ; VAX addr of 16bit reg
+            movzwl  (r3),       r2          ; z80 addr val of IDX in r2
+            cmpl    r9,         r3          ; is it the addr of IX or IY
+            beql    XXxxxrrr                ; branch if not IX/IY    (HL/A  or reg)
+            ;beql    8$                      ; branch if not IX/IY    (HL/A  or reg)
+
+		
+	    cvtbw   r0, r3                  ; save the offset
+            cvtbw   (r10)[r11], r0          ; and fetch the actual opcode
+            incw     r10
+
+            cmpzv   #0, #3, r0, #6
+	    bneq    3$                      ; must be (HL) or invalid
+
+            ; It's IX, IY  anything else is unknown_op
+            ; must have DD, FD prefix so assume its (idx+d)
+            ;NO its IX or IY so r0 is the offset not opcode
+            addw2   r3,         r2          ; add offset d IX/IY+d 
+            movab   (r2)[r11],  r2          ; cvt z80 address in r2 to vax
+
+	    ; r2 = (dx+d)  r0 = opcode
+            ;
+            rsb   ; we done
+
+       3$:
+            popl    r1                      ; drop return address and do unknown_op
+	    brw     unknown_op              ; since IX,IY was selected it must be (HL)
+
+      8$:   ; NOT IX/IY
+	    brw   XXxxxrrr                  ; normal
+	    ;.noshow EXPANSIONS
+	    rsb                             ; not reached
+;.endm
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 
 traceit: 
@@ -3632,10 +3731,12 @@ dotraceDI:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 disassembler:
             pushl   r0                      ; save opcode
-            movzwl  CURIP, r0
+
+            movzwl  CURIP, r0               ; C compiler seems to watch CVTWL ???
             pushl   r0
             pushal  z80_memory
             calls   #2, diz80
+
             popl    r0                      ; restore opcode
             rsb
 
