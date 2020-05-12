@@ -168,14 +168,11 @@ char *fmtarg(char *argstr,mem_t *mem,z16_t iip,op_t op, inst_t *opinfo, int argc
             break;
         case ate:    // byte PC relative ie djnz e
             e = mem[iip++];
-            iip_low  = iip  & 0xff;
-            iip_high = (iip>>8) & 0xff;
-            iip_low += e;
-            taddr = iip_high<<8 | (iip_low & 0xff);
             se = e;
             if(se>=128) {
                 se -= 256;
             }
+            taddr = iip + se;
             sprintf(argstr,"$%+d\t;%04Xh", se,taddr );
             break;
         case atidx:  // IX or IY

@@ -633,10 +633,6 @@ Z80_START:: .word ^M<>
 ;;;;;;
 fetch:
 ;;;;;;
-            blbc    brkflag, exec0
-breakpoint: clrb    brkflag       ; for debugging only 'set break breakpoint'
-            bsbw    dump_z80_reg
-
 exec0:
             movaw   reg_HL, ptr_IDX ; reset IDX pointer to HL
             addb3   reg_R, #1, r0 ; increment 7bits of R
@@ -648,9 +644,19 @@ exec1:
             movzbl  (r10)[r11], r0         ; FETCH r0 opcode here<<<<<!!!
             movw    r10       , CURIP
             movab   (r10)[r11], CURIPADDR
+
             bsbw    traceit       ; call trace it for the DD still pointing at DD,FD
 
 	    incw    r10
+
+            blbc    brkflag, nobrk
+breakpoint: clrb    brkflag       ; for debugging only 'set break breakpoint'
+	    bsbw    disassembler
+	    tstb    r0
+	    beql    nobrk
+            bsbw    dump_z80_reg
+    nobrk:
+
 
 fetch2:     ; FD,DD IX,IY loops to here so keep CURIP pointing to the prefix
 
@@ -691,7 +697,8 @@ op00:       caseb   r2, #0, #7              ;
 ;;;;;;;;;;;
 op00___000: extzv   #3, #3, r0, r1
 ;;;;;;;;;;;
-            movzbl  (r10)[r11], r3          ; fetch branch value
+            ;movzbl  (r10)[r11], r3          ; fetch branch value
+            cvtbw   (r10)[r11], r3          ; sign extend the branch
             incw    r10
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -722,7 +729,7 @@ op00_010_000:   ; DJNZ e
             decb    reg_B
             beql    lab01   ; branch if loop is finished
 op00_011_000:   ; JR    e
-            addb2   r3, r10
+            addw2   r3, r10
 lab01:      brw     fetch
 
 
@@ -765,7 +772,7 @@ ADD_rr16bit: ;                               op00_rr1_001
             ; N is cleared
             ; C is set by carry from bit 15, reset otherwise
             bicb2   #^x3B     , reg_F       ; clear flags --5H3-NC
-            bicb2   #z80Flagm_S, reg_F      ; +ve is S = 0
+            bicb2   #z80Flagm_SUBN, reg_F      ; +ve is N = 0
 
             movl    ptr_BC[r3], r2          ; BC, DE, HL, SP
 
@@ -868,7 +875,7 @@ op00___100:                                   ; INC r
             movpsl  r5
             ; eflags: SZ5H3VN-
             bicb2   #^xD6, reg_F
-            bicb2   #z80Flagm_S, reg_F      ; clear S +ve
+            bicb2   #z80Flagm_SUBN, reg_F   ; clear N add 
 
             bbc     #vaxFlag_V, r5, 21$
             bisb2   #z80Flagm_PV, reg_F     ; set V flag
@@ -897,8 +904,7 @@ op00___101:                                   ; DEC r
 
             movpsl  r5
             bicb2   #^xD6, reg_F            ; clear S, Z, H, V, N Flags
-    	    bicb2   #z80Flagm_S,    reg_F
-            bisb2   #z80Flagm_SUBN, reg_F  ; set N flag - substract op
+            bisb2   #z80Flagm_SUBN, reg_F   ; set N flag - substract op
 
             bbc     #vaxFlag_V, r5, 21$
             bisb2   #z80Flagm_PV, reg_F     ; set V flag
@@ -1258,14 +1264,15 @@ op10_000_rrr:                               ; ADD A, r
 op10_001_rrr:                               ; ADC A, r
             ; eflags: SZ5H3VNC
             bicb2  #^xD6, reg_F             ; clear S,Z,5,H,3,V,N,
-            bisb3  #^x28, r0, r4            ; get bits 5,3
+            ;clrl   r4
+            bicl3  #^xFFFFFFD7, r0, r4      ; get bits 5,3
             bisb2  r4, reg_F                ; copy the 5,3 bits to flags
-
             blbc   reg_F, 10$               ; branch if NC
-            movl   r3, r7                   ; save r3
-            movzbl #1, r3
-            bsbw   addr3toA
-            movl   r7, r3
+	        bicb2  #z80Flagm_C, reg_F       ; clear noted carry
+                movl   r3, r7                   ; save r3
+                movzbl #1, r3                   ; add the carry to results
+                bsbw   addr3toA
+                movl   r7, r3                   ; restore r3
     10$:    bsbw   addr3toA
             brw    fetch
             
@@ -1282,8 +1289,8 @@ op10_010_rrr:                               ; SUB A, r
             
 op10_011_rrr:                               ; SBC A, r
             ; eflags: SZ5H3VNC
-            bisb2  #z80Flagm_SUBN, reg_F    ; set N flags
             bicb2  #^xD4, reg_F             ; clear S,Z,5,H,-,,V,, flags
+            bisb2  #z80Flagm_SUBN, reg_F    ; set SUBN flags
             blbc   reg_F, 10$               ; branch NC
             movl   r3, r7                   ; save r3
             movzbl #1, r3
@@ -1303,7 +1310,12 @@ addr3toA:                                   ; subroutine to add r3 to reg_A
     no_H1:
             addb2  r3, reg_A                ; do add set vax flags
             movpsl r5
-	    bicb2   #z80Flagm_S, reg_F      ; assume +ve result
+	    bicb2  #z80Flagm_SUBN, reg_F    ; add
+	    bicb2  #z80Flagm_S   , reg_F    ; TODO: clean this up
+	    bicb2  #z80Flagm_C   , reg_F    ; 
+	    bicb2  #z80Flagm_PV  , reg_F    ; 
+	    bicb2  #z80Flagm_Z   , reg_F    ; 
+
             blbc   r5, 31$                  ; branch noCarry
             bisb2  #z80Flagm_C, reg_F       ; set C flag
     31$:    bbc    #vaxFlag_V, r5, 32$      ; branch nooVerflow
@@ -1319,7 +1331,7 @@ addr3toA:                                   ; subroutine to add r3 to reg_A
 subr3toA:                                   ; subroutine to sub r3 from reg_A
             ; eflags: SZ5H3VNC
 	    movzbl reg_A, r2
-            extzv  #0, #4, r3, r4           ; get lower nibble in r3
+            extzv  #0, #4, r3, r4           ; get lower nibble in r4
             extzv  #0, #4, r2, r6           ; get lower nibble of A in r6
             subb2  r4, r6                   ; sub lower nibbles
 	    cmpzv  #4, #4, r6, #0           ; look for a Half carry
@@ -1328,7 +1340,12 @@ subr3toA:                                   ; subroutine to sub r3 from reg_A
     no_H2:
             subb2  r3, reg_A                ; do sub set vax flags
             movpsl r5
-	    bicb2   #z80Flagm_S, reg_F      ; assume +ve result
+	    bisb2  #z80Flagm_SUBN, reg_F    ; subtraction
+	    bicb2  #z80Flagm_S   , reg_F    ; assume +ve result
+	    bicb2  #z80Flagm_C   , reg_F    ; TODO: clean this up
+	    bicb2  #z80Flagm_PV  , reg_F    ; TODO: clean this up
+	    bicb2  #z80Flagm_Z   , reg_F    ; TODO: clean this up
+
             blbc   r5, 31$
             bisb2  #z80Flagm_C, reg_F       ; set C flag
     31$:    bbc    #vaxFlag_V, r5, 32$
@@ -1351,6 +1368,7 @@ op10_100_rrr:                               ; AND A, r
 logsetflags:
             movpsl r5
 	    bicb2   #z80Flagm_S, reg_F      ; assume +ve result
+	    bicb2   #z80Flagm_Z, reg_F      ; assume NZ
 
             bbc    #vaxFlag_Z, r5, 33$      ; test vax_psw:2=Z
             bisb2  #z80Flagm_Z, reg_F       ; set Z flag
@@ -1416,7 +1434,11 @@ op11_ccc_000:                               ; RET ccc
 	    ; jump
 op_RETSUB:
 	    decl    CALLDEPTH
+
+	    tstl    DFLG
+	    beql    10$                     ; no newline if we not in Debug trace
 	    bsbw    newline
+  10$:
 op_RET:
             movzwl  reg_SP, r2
             movb    (r2)[r11], NEW_PC
@@ -1721,6 +1743,7 @@ opCB_00_111_rrr:                            ; SRL
 CBsetflags: ; set S, Z, P
 ;;;;;;;;;;;;;
             ; eflags: SZ503P0C
+            bicb2   #z80Flagm_Z!z80Flagm_S, reg_F
             movb    r4, (r2)		    ; store result back into dest
             beql    10$                     ; TODO: makesure movb has set the Z flag ??
             bisb2   #z80Flagm_Z, reg_F      ; set Z flag
@@ -1900,26 +1923,41 @@ opED_01_xxx_010:                            ; SBC HL, rr  ADC HL, rr
             ; H is set if borrow from bit 12 otherwise, it is reset.
             ; ADC/SBC s     eflags: SZ***VNC  F5,H,F3 from higher bytes addition
 
+	    bicb2   #^XD6, reg_F            ; SZ-H-VN-
             extzv   #4, #2, r0,  r2
-            movzwl  @ptr_BC[r2], r2         ; src z80 word 
+
+	    movl    ptr_BC[r2],  r3
+            movzwl  (r3),        r2         
+
+            ;movzwl  @ptr_BC[r2], r2         ; src z80 word 
+
             movl    ptr_IDX,     r3         ; dst local word address
-	    blbc    reg_F, 10$
-	    incw    r2
-      10$:
+
+            ;pushal  fetch                   ; return via opED_Csetflags2
+            ;bsbb    opED_Csetflags          ; 
+
             bbs     #3, r0, op_ADCHL
 
 op_SBCHL:
-            bicb2   #^xD7, reg_F            ; clear S,Z,H,V,C
-	    bisb2   #z80Flagm_SUBN, reg_F   ; set N
+	    blbc    reg_F, 10$	            ; is Z80 Carry set?
+	       bicb2   #z80Flagm_C, reg_F   ; C noted so clear C
+	       incw    r2                   ; include the carry
+      10$: 
+	    bisb2   #z80Flagm_SUBN, reg_F   ; SUB
             subw2   r2, (r3)
             brb     opED_Csetflags
+
 op_ADCHL:
-            bicb2   #^xD7, reg_F            ; clear S,Z,V,N,C
+	    blbc    reg_F, 10$	            ; is Z80 Carry set?
+	       bicb2   #z80Flagm_C, reg_F   ; C noted so clear C
+	       incw    r2                   ; add the carry
+      10$: 
+	    bicb2   #z80Flagm_SUBN, reg_F   ; add
             addw2   r2, (r3)
+	    ;brb     opED_Csetflags
 
 opED_Csetflags:
             movpsl  r5
-	    bicb2   #z80Flagm_S, reg_F      ; assume +ve result
 
             blbc    r5, 10$
             bisb2   #z80Flagm_C, reg_F      ; set C flag
@@ -1927,13 +1965,15 @@ opED_Csetflags:
     10$:    bbc     #vaxFlag_V, r5, 20$
             bisb2   #z80Flagm_PV, reg_F     ; set V flag
 
-    20$:    bbs     #vaxFlag_Z, r5, 33$
+    20$:    bbc     #vaxFlag_Z, r5, 33$
             bisb2   #z80Flagm_Z, reg_F      ; set Z flag
 
     33$:    bbc     #vaxFlag_N, r5, 34$     ; Branch if VAX +ve
             bisb2   #z80Flagm_S, reg_F      ; clear S flag 1=-ve,  z80 0=+ve
 
-    34$:    brw     fetch
+    34$:    
+	    brw     fetch
+	    ;rsb
     
     
 opED_01_xxx_011:                            ; LD (pq), rr  LD rr, (pq)
@@ -1962,7 +2002,6 @@ opED_01_xxx_100:                            ; NEG A
             cmpb    r0, #^x44
             bneq    10$
             bicb2   #^xD5, reg_F            ; clear S,Z,H,V,C
-            bicb2   #z80Flagm_S,    reg_F
             bisb2   #z80Flagm_SUBN, reg_F   ; SUB
 
             extzv   #0, #4, reg_A, r2       ; get low nibble
@@ -2000,10 +2039,10 @@ opED_01_xxx_110:                            ; IM0, IM1, IM2
                  .word opED_01_001_110-10$  ; 4E unknown_op
                  .word opED_01_010_110-10$  ; 56 IM 1
                  .word opED_01_011_110-10$  ; 5E IM 2
-                 .word opED_01_100_110-10$  ; 66 unknown_op
-                 .word opED_01_101_110-10$  ; 6E unknown_op
-                 .word opED_01_110_110-10$  ; 76 unknown_op
-                 .word opED_01_111_110-10$  ; 7E unknown_op
+                 .word opED_01_100_110-10$  ; 66 unknown_op - loaddepth
+                 .word opED_01_101_110-10$  ; 6E unknown_op - loadtrace
+                 .word opED_01_110_110-10$  ; 76 unknown_op - dreg
+                 .word opED_01_111_110-10$  ; 7E unknown_op - dobrk
             brw      unknown_op             ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 opED_01_001_110: ; 4E  LOADDFLG nnnn  
@@ -2033,11 +2072,11 @@ opED_01_101_110: ; 6E LOADTRACE nnnn
             movzwl  TEMP, TRACEDEPTH
             brw     fetch
 
-opED_01_110_110: ; 76 dumpreg
+opED_01_110_110: ; 76 dumpreg dreg
             bsbw    dump_z80_reg
             brw     fetch
 
-opED_01_111_110: ; 77 BRK
+opED_01_111_110: ; 7E BRK dobrk
             incl    brkflag                 ; set low bit
             brw     fetch
 
@@ -2079,7 +2118,7 @@ opED_01_010_111:                            ; LD A, I
             tstb     reg_A
             beql     10$
             bisb2    #z80Flagm_Z, reg_F     ; set Z flag
-    10$:    bbc      #6, reg_A, 20$
+    10$:    bbc      #6, reg_A, 20$         ; TODO: check this #7?
             bisb2    #z80Flagm_S, reg_F     ; set S flag
     20$:    brw      fetch
     
@@ -2106,7 +2145,8 @@ opED_01_100_111:                            ; RRD A
 ;4
             tstb    reg_A
             movpsl  r5
-            bicb2   #z80Flagm_S, reg_F      ; clear S +ve
+            bicb2   #z80Flagm_S, reg_F      ; 
+            bicb2   #z80Flagm_Z, reg_F      ; 
 
             bbc     #vaxFlag_Z, r5, 33$
             bisb2   #z80Flagm_Z, reg_F      ; set Z flag
@@ -2137,6 +2177,7 @@ opED_01_101_111:                            ; RLD A
 
             movpsl  r5
             bicb2   #z80Flagm_S, reg_F      ; clear S +ve
+            bicb2   #z80Flagm_Z, reg_F      ; clear S +ve
 
             bbc     #vaxFlag_Z, r5 , 33$
             bisb2   #z80Flagm_Z, reg_F
@@ -2280,7 +2321,7 @@ opED_10_110_001:                            ; CPIR
             ; eflags:  SZ*H**1-  PV set if BC not 0
     10$:    movzwl  @ptr_IDX, r1
             movzbl  (r1)[r11], r3
-            movb    reg_A, r7               ; temo save reg_A
+            movb    reg_A, r7               ; temp save reg_A
             bsbw    subr3toA                ; sub r3 from reg_A
             movb    r7, reg_A               ; restore reg_A
             incw    @ptr_IDX
@@ -3842,6 +3883,7 @@ dump_z80_reg:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 halt_message:
+	    bsbw    dotrace
             bsbw    dump_z80_reg
             pushaq  halt_prompt_dsc
             calls   #1, emuoutdsc

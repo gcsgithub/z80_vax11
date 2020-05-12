@@ -645,7 +645,7 @@ inst_t ed00[] = {
     { 0x73, "LD (%s),SP"       , "", 4, atnn  , atnon , (inst_t *) NULL },
     { 0x74, "*NEG"             , "", 2, atnon , atnon , (inst_t *) NULL },
     { 0x75, "*RETN"            , "", 2, atnon , atnon , (inst_t *) NULL },
-    { 0x76, "*IM 1"            , "", 2, atnon , atnon , (inst_t *) NULL },
+    { 0x76, "dreg"             , "", 2, atnon , atnon , (inst_t *) NULL }, // "*IM 1"
     { 0x77, "*NOP"             , "", 2, atnon , atnon , (inst_t *) NULL },
     { 0x78, "IN A,(C)"         , "", 2, atnon , atnon , (inst_t *) NULL },
     { 0x79, "OUT (C),A"        , "", 2, atnon , atnon , (inst_t *) NULL },
@@ -653,7 +653,7 @@ inst_t ed00[] = {
     { 0x7b, "LD SP,(%s)"       , "", 4, atnn  , atnon , (inst_t *) NULL },
     { 0x7c, "*NEG"             , "", 2, atnon , atnon , (inst_t *) NULL },
     { 0x7d, "*RETI"            , "", 2, atnon , atnon , (inst_t *) NULL },
-    { 0x7e, "*IM 2"            , "", 2, atnon , atnon , (inst_t *) NULL },
+    { 0x7e, "dobrk"            , "", 2, atnon , atnon , (inst_t *) NULL }, // "*IM 2"
     { 0x7f, "*NOP"             , "", 2, atnon , atnon , (inst_t *) NULL },
     { 0x80, "*NOP"             , "", 2, atnon , atnon , (inst_t *) NULL },
     { 0x82, "*NOP"             , "", 2, atnon , atnon , (inst_t *) NULL },
@@ -822,8 +822,8 @@ inst_t ddfd00[] = {
     { 0x21, "LD %s,%s"   , "", 4, atidx , atnn  , (inst_t *) NULL }, // LD IX,nn
     { 0x22, "LD (%s),%s" , "", 4, atnn  , atidx , (inst_t *) NULL }, // LD (nn),IX FD 22 nn nn
     { 0x23, "INC %s"     , "", 2, atidx , atnon , (inst_t *) NULL }, // INC IX
-    { 0x24, "INC %sh"    , "", 2, atnon , atnon , (inst_t *) NULL }, // INC IXh
-    { 0x25, "DEC %sh"    , "", 2, atnon , atnon , (inst_t *) NULL }, // DEC IXh
+    { 0x24, "INC %sh"    , "", 2, atidx , atnon , (inst_t *) NULL }, // INC IXh
+    { 0x25, "DEC %sh"    , "", 2, atidx , atnon , (inst_t *) NULL }, // DEC IXh
     { 0x26, "LD %sh,%s"  , "", 3, atidx , atn   , (inst_t *) NULL }, // LD IXh, n
     { 0x27, "DAA"        , "", 2, atnon , atnon , (inst_t *) NULL },
     { 0x28, "JR Z,%s"    , "", 3, ate   , atnon , (inst_t *) NULL },
@@ -896,7 +896,7 @@ inst_t ddfd00[] = {
     { 0x6b, "LD %sl,E"   , "", 2, atidx , atnon , (inst_t *) NULL }, // LD IXl, E
     { 0x6c, "?LD %sl,H"  , "", 2, atidx , atnon , (inst_t *) NULL }, // LD IXl, H invalid in zmac
     { 0x6d, "?LD %sl,L"  , "", 2, atidx , atnon , (inst_t *) NULL }, // LD IXl, L invalid in zmac
-    { 0x6e, "LD L,(%s)"  , "", 3, atnon , atnon , (inst_t *) NULL }, // LD L,(IX+d)
+    { 0x6e, "LD L,(%s)"  , "", 3, atidxd, atnon , (inst_t *) NULL }, // LD L,(IX+d)
     { 0x6f, "LD %sl,A"   , "", 2, atidx , atnon , (inst_t *) NULL }, // LD IXh, A
     { 0x70, "LD (%s),B"  , "", 3, atidxd, atnon , (inst_t *) NULL }, // LD (IX+d),B
     { 0x71, "LD (%s),C"  , "", 3, atidxd, atnon , (inst_t *) NULL }, // LD (IX+d),C

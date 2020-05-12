@@ -19,10 +19,10 @@ int main(int argc, char *argv[])
     
     z16_t pc = 0x100;
     
-    fnm = "/Users/mark/emu/Zilog/Z80_8080/zout/xx.hex";
+    fnm = "/Users/mark/emu/Zilog/Z80_8080/zout/branch.hex";
     loadhex(fnm, z80_memory);
     
-    while (pc < 0x016A) {
+    while (pc < 0x036A) {
         r0 = diz80(z80_memory, pc);
         pc += r0;
     }

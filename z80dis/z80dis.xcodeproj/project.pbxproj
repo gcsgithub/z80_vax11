@@ -101,7 +101,7 @@
 		4DD7B8BD216E310200E4CA39 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 1000;
+				LastUpgradeCheck = 1100;
 				ORGANIZATIONNAME = Garetech;
 				TargetAttributes = {
 					4DD7B8C4216E310200E4CA39 = {
