@@ -265,18 +265,18 @@ ptrn_HL:     .address    reg_HL ; 10
 ptrn_AF:     .address    reg_AF ; 11
 
 
-reg_AF:
-    reg_F:   .blkb    1
-    reg_A:   .blkb    1
-reg_BC:
-    reg_C:   .blkb    1
-    reg_B:   .blkb    1
-reg_DE:
-    reg_E:   .blkb    1
-    reg_D:   .blkb    1
-reg_HL:
-    reg_L:   .blkb    1
-    reg_H:   .blkb    1
+reg_AF:                  ; 9AC4
+    reg_F:   .blkb    1  ;   9AC4
+    reg_A:   .blkb    1  ;   9AC5
+reg_BC:                  ; 9AC6
+    reg_C:   .blkb    1  '   9AC6
+    reg_B:   .blkb    1  ;   9AC7 
+reg_DE:                  ; 9AC8
+    reg_E:   .blkb    1  ;   9AC8
+    reg_D:   .blkb    1  ;   9AC9
+reg_HL:                  ; 9ACA
+    reg_L:   .blkb    1  ;   9ACA
+    reg_H:   .blkb    1  ;   9ACB
 
 
 reg_AF2:
@@ -860,6 +860,7 @@ op00___011:
             bbs     #3, r0, DECrr
             incw    (r2)
             brw     fetch
+
 DECrr:      decw    (r2)
             brw     fetch
             
@@ -919,7 +920,7 @@ op00___101:                                   ; DEC r
             decb    r1
             bicb2   #^x0f, r1
             tstb    r1
-            bleq    42$                     ; branch if no half carry
+            beql    42$                     ; branch if no half carry was bleq
             bisb2   #z80Flagm_H, reg_F      ; set H flag
     42$:    brw     fetch
     
@@ -1386,7 +1387,7 @@ op10_101_rrr:                               ; XOR A, r
             ; eflags: SZ503P00/SZ100P00
             clrb   reg_F
             bicb2  #^xD7, reg_F             ; clear S, Z, H, P, N, C
-            xorb2  r3, reg_A
+            xorb2  r3, reg_A                ; clr(C,N) V=parity 
             brb    logsetflags
 
 op10_110_rrr:                               ; OR A, r
@@ -3581,16 +3582,16 @@ XXrrrxxx:
 ;	    .show EXPANSIONS
             extzv   #4, #2, r0, r1          ; get reg pair addr
             movl    ptr_AF,     r3          ; get assume its ptr reg_A
-            cmpb    r1, #3                  ; is it indirect (IDX/ A
+            cmpb    r1, #3                  ; is it indirect (IDX)/ A
             bneq    12$                     ; branch if not (IDX)/ A
 
 	    ; 11x A or (IDX)
-            movl    r3,         r2
+            movl    r3,         r2          ; save ptr_AF into r2
             bbs     #3, r0, 15$             ; branch if 111 reg A
 
             ; else its 110 Indirect (IDX)  ie (HL) (IX+d) (IY+d)
             movl    ptr_IDX,    r3          ; VAX addr of 16bit reg
-            movzwl  (r3),       r2          ; z80 addr val of IDX in r2
+            movzwl  (r3),       r2          ; z80 addr val in IDX in r2
             cmpl    r9,         r3          ; is it the addr of HL else indexes
             beql    10$                     ; branch if HL
 
@@ -3602,10 +3603,10 @@ XXrrrxxx:
 
             addw2   r3,         r2          ; add offset d IX/IY+d
 
-       10$: movab   (r2)[r11],  r2          ; cvt z80 address in r2 to vax
+    10$:    movab   (r2)[r11],  r2          ; cvt z80 address in r2 to vax
             brb     20$
 
-    12$:    ; else its BC, DE or IDX
+    12$:    ; else its BC, DE or IDX(8bit half h,l,idx.h, idx.l, iy.h,iy.l)
             movl    ptr_BC[r1], r3          ; get VAX address of reg pair
 
 	    cmpzv   #6, #2, r0, #1          ; only for LD r,r'
@@ -3637,7 +3638,7 @@ XXxxxrrr:
 	    ;.show EXPANSIONS
             extzv   #1, #2, r0, r1          ; get reg pair addr
             movl    ptr_AF,     r3          ; get assume its ptr reg_A
-            cmpb    r1, #3                  ; is it indirect (IDX/ A
+            cmpb    r1, #3                  ; is it indirect (IDX)/ A
             bneq    12$                     ; branch if not (IDX)/ A
 
 	    ; 11x A or (IDX)
